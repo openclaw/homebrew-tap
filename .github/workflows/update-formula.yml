@@ -4,17 +4,22 @@ on:
   workflow_dispatch:
     inputs:
       formula:
-        description: 'Formula name (e.g., peekaboo)'
+        description: "Formula name (e.g., gitcrawl)"
         required: true
         type: string
+        default: "gitcrawl"
       tag:
-        description: 'Release tag to update formula for'
+        description: "Release tag to update formula for"
         required: true
         type: string
       repository:
-        description: 'Source repository (e.g., steipete/peekaboo)'
+        description: "Source repository (e.g., openclaw/gitcrawl)"
         required: true
         type: string
+        default: "openclaw/gitcrawl"
+
+permissions:
+  contents: write
 
 jobs:
   update-formula:
@@ -24,32 +29,56 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Setup Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-      
+
       - name: Update formula
         run: |
           FORMULA="${{ github.event.inputs.formula }}"
           TAG="${{ github.event.inputs.tag }}"
           REPO="${{ github.event.inputs.repository }}"
           VERSION="${TAG#v}"
-          
-          # Download the release artifact
-          DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/${FORMULA}-macos-universal.tar.gz"
-          curl -L "${DOWNLOAD_URL}" -o "${FORMULA}.tar.gz"
-          
-          # Calculate SHA256
-          SHA256=$(shasum -a 256 "${FORMULA}.tar.gz" | awk '{print $1}')
-          
-          # Update the formula
-          sed -i '' "s/version \".*\"/version \"${VERSION}\"/" "Formula/${FORMULA}.rb"
-          sed -i '' "s/sha256 \".*\"/sha256 \"${SHA256}\"/" "Formula/${FORMULA}.rb"
-          sed -i '' "s|url \".*\"|url \"${DOWNLOAD_URL}\"|" "Formula/${FORMULA}.rb"
-          
-          # Commit and push
+          export FORMULA TAG REPO VERSION
+
+          for TARGET in darwin_amd64 darwin_arm64 linux_amd64 linux_arm64; do
+            ASSET="${FORMULA}_${VERSION}_${TARGET}.tar.gz"
+            URL="https://github.com/${REPO}/releases/download/${TAG}/${ASSET}"
+            curl -fsSL "${URL}" -o "${ASSET}"
+            SHA="$(shasum -a 256 "${ASSET}" | awk '{print $1}')"
+            export "URL_${TARGET}=${URL}"
+            export "SHA_${TARGET}=${SHA}"
+          done
+
+          python3 <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          formula = os.environ["FORMULA"]
+          version = os.environ["VERSION"]
+          path = Path("Formula") / f"{formula}.rb"
+          text = path.read_text()
+          text = re.sub(r'version "[^"]+"', f'version "{version}"', text, count=1)
+
+          for target in ("darwin_amd64", "darwin_arm64", "linux_amd64", "linux_arm64"):
+              url = os.environ[f"URL_{target}"]
+              sha = os.environ[f"SHA_{target}"]
+              pattern = rf'url "https://github\.com/[^"]+/{formula}_[^"]+_{target}\.tar\.gz"\n\s+sha256 "[0-9a-f]+"'
+              replacement = f'url "{url}"\n      sha256 "{sha}"'
+              text, count = re.subn(pattern, replacement, text, count=1)
+              if count != 1:
+                  raise SystemExit(f"failed to update {target} in {path}")
+
+          path.write_text(text)
+          PY
+
           git add "Formula/${FORMULA}.rb"
-          git commit -m "Update ${FORMULA} to ${TAG}"
+          if git diff --cached --quiet; then
+            echo "Formula/${FORMULA}.rb already up to date"
+            exit 0
+          fi
+          git commit -m "chore: update ${FORMULA} to ${TAG}"
           git push
