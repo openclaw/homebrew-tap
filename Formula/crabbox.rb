@@ -48,6 +48,6 @@ class Crabbox < Formula
   end
 
   test do
-    system "#{bin}/crabbox", "--version"
+    system bin/"crabbox", "--version"
   end
 end
