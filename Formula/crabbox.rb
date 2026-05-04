@@ -5,21 +5,21 @@
 class Crabbox < Formula
   desc "Remote Linux test boxes for dirty worktrees and CI hydration"
   homepage "https://github.com/openclaw/crabbox"
-  version "0.4.0"
+  version "0.5.0"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.intel?
-      url "https://github.com/openclaw/crabbox/releases/download/v0.4.0/crabbox_0.4.0_darwin_amd64.tar.gz"
-      sha256 "029df1d1d750bb0077f8cae008121aee7ad32f19a26e92ab4237377830003549"
+      url "https://github.com/openclaw/crabbox/releases/download/v0.5.0/crabbox_0.5.0_darwin_amd64.tar.gz"
+      sha256 "892f17792dbc48728723e841038d711bb091f0488a703321566bb52ad784c3aa"
 
       define_method(:install) do
         bin.install "crabbox"
       end
     end
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/crabbox/releases/download/v0.4.0/crabbox_0.4.0_darwin_arm64.tar.gz"
-      sha256 "8131dcf20b42f6c5239c744aabf1d37256e4d76355ae00e6540f6b297ecebb44"
+      url "https://github.com/openclaw/crabbox/releases/download/v0.5.0/crabbox_0.5.0_darwin_arm64.tar.gz"
+      sha256 "aa4e6491e983df46a31eaa782f23b54a3083e641fbae8a998a0efc1d1193df48"
 
       define_method(:install) do
         bin.install "crabbox"
@@ -29,15 +29,15 @@ class Crabbox < Formula
 
   on_linux do
     if Hardware::CPU.intel? && Hardware::CPU.is_64_bit?
-      url "https://github.com/openclaw/crabbox/releases/download/v0.4.0/crabbox_0.4.0_linux_amd64.tar.gz"
-      sha256 "70ea33e1235bbab6a1a8d1bae9e94fb83b37cf7a7a673b063a92a6d8f66ca57f"
+      url "https://github.com/openclaw/crabbox/releases/download/v0.5.0/crabbox_0.5.0_linux_amd64.tar.gz"
+      sha256 "18b0bf2b8d69987f44a529c7ad384c1c421bf9a2a45549a277ecd235379201a9"
       define_method(:install) do
         bin.install "crabbox"
       end
     end
     if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
-      url "https://github.com/openclaw/crabbox/releases/download/v0.4.0/crabbox_0.4.0_linux_arm64.tar.gz"
-      sha256 "7877124513c259bb1941620424e74dd0b5c83019a57c66a29ea2069df8bacbde"
+      url "https://github.com/openclaw/crabbox/releases/download/v0.5.0/crabbox_0.5.0_linux_arm64.tar.gz"
+      sha256 "109f2320389abfbf259313dc9c5b47289a91c7f4286ab9d9017eabd100be2700"
       define_method(:install) do
         bin.install "crabbox"
       end
