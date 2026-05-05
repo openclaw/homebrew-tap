@@ -22,7 +22,7 @@ brew install --cask openclaw/tap/<name>
 
 ### Formulae
 
-- `gitcrawl` — Local-first GitHub issue and pull request crawler for maintainer triage
+- `gitcrawl` — Local GitHub issue and PR archive with gh-compatible caching
 
 ### Casks
 

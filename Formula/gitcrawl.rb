@@ -1,28 +1,28 @@
 class Gitcrawl < Formula
-  desc "Local-first GitHub issue and pull request crawler for maintainer triage"
+  desc "Local GitHub issue and PR archive with gh-compatible caching"
   homepage "https://github.com/openclaw/gitcrawl"
-  version "0.1.2"
+  version "0.2.0"
   license "MIT"
 
   head "https://github.com/openclaw/gitcrawl.git", branch: "main"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/gitcrawl/releases/download/v0.1.2/gitcrawl_0.1.2_darwin_arm64.tar.gz"
-      sha256 "5346f86659308f8a5bb55eee3cb9741e983b55512a82b75f9d5a1d398a9065e7"
+      url "https://github.com/openclaw/gitcrawl/releases/download/v#{version}/gitcrawl_#{version}_darwin_arm64.tar.gz"
+      sha256 "5ee6f4d2625ae46bf7f2cbc5c70479eb25391ff66442192b3341dfe0bec1a90b"
     else
-      url "https://github.com/openclaw/gitcrawl/releases/download/v0.1.2/gitcrawl_0.1.2_darwin_amd64.tar.gz"
-      sha256 "b1d48d630d2d3aeb06a1f34aa0e00fa7b7e66d4a19aab5ae81efe266b95c7a7b"
+      url "https://github.com/openclaw/gitcrawl/releases/download/v#{version}/gitcrawl_#{version}_darwin_amd64.tar.gz"
+      sha256 "6c41f847a92e76f8bef7ea3abca21d2717953a838251cd18733e2a0b4fa5cd2d"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/gitcrawl/releases/download/v0.1.2/gitcrawl_0.1.2_linux_arm64.tar.gz"
-      sha256 "70e770c19b708f31d4ed22e4243367eaa02ec67c34fdf3e92a5a403656a3734a"
+      url "https://github.com/openclaw/gitcrawl/releases/download/v#{version}/gitcrawl_#{version}_linux_arm64.tar.gz"
+      sha256 "2212f2a4278241c103fc315c6a3faa4316bc2c9e26ca84a8314cb1d3c628ed66"
     else
-      url "https://github.com/openclaw/gitcrawl/releases/download/v0.1.2/gitcrawl_0.1.2_linux_amd64.tar.gz"
-      sha256 "dbcaa79ae864ca205cc7b204930576b77f1d60e7d8e7a56bb0eb14360b2963d1"
+      url "https://github.com/openclaw/gitcrawl/releases/download/v#{version}/gitcrawl_#{version}_linux_amd64.tar.gz"
+      sha256 "e5c0b2e44a67492c47817aa3ae2ee33749e6d6fc6d89c4eccdae5b1a6da6a53f"
     end
   end
 
@@ -35,6 +35,17 @@ class Gitcrawl < Formula
     else
       bin.install "gitcrawl"
     end
+  end
+
+  def caveats
+    <<~EOS
+      gitcrawl stores local state under:
+        ~/.config/gitcrawl/
+        ~/.cache/gitcrawl/
+
+      To use the GitHub CLI shim, symlink the same binary as gitcrawl-gh or gh
+      and set GITCRAWL_GH_PATH to the real GitHub CLI.
+    EOS
   end
 
   test do
