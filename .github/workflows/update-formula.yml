@@ -1,4 +1,5 @@
 name: Update Formula
+run-name: Update ${{ inputs.formula }} for ${{ inputs.tag }}${{ inputs.request_id && format(' ({0})', inputs.request_id) || '' }}
 
 on:
   workflow_dispatch:
@@ -17,6 +18,14 @@ on:
         required: true
         type: string
         default: "openclaw/gitcrawl"
+      artifact_template:
+        description: "Release asset template, e.g. {formula}_{version}_{target}.tar.gz"
+        required: false
+        type: string
+      request_id:
+        description: "Unique caller-generated ID used to identify this workflow run"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -41,10 +50,18 @@ jobs:
           TAG="${{ github.event.inputs.tag }}"
           REPO="${{ github.event.inputs.repository }}"
           VERSION="${TAG#v}"
-          export FORMULA TAG REPO VERSION
+          ASSET_TEMPLATE="${{ github.event.inputs.artifact_template }}"
+          if [ -z "${ASSET_TEMPLATE}" ]; then
+            ASSET_TEMPLATE="{formula}_{version}_{target}.tar.gz"
+          fi
+          export FORMULA TAG REPO VERSION ASSET_TEMPLATE
 
           for TARGET in darwin_amd64 darwin_arm64 linux_amd64 linux_arm64; do
-            ASSET="${FORMULA}_${VERSION}_${TARGET}.tar.gz"
+            ASSET="${ASSET_TEMPLATE}"
+            ASSET="${ASSET//\{formula\}/${FORMULA}}"
+            ASSET="${ASSET//\{version\}/${VERSION}}"
+            ASSET="${ASSET//\{tag\}/${TAG}}"
+            ASSET="${ASSET//\{target\}/${TARGET}}"
             URL="https://github.com/${REPO}/releases/download/${TAG}/${ASSET}"
             curl -fsSL "${URL}" -o "${ASSET}"
             SHA="$(shasum -a 256 "${ASSET}" | awk '{print $1}')"
