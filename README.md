@@ -22,6 +22,7 @@ brew install --cask openclaw/tap/<name>
 
 ### Formulae
 
+- `crabbox` — Remote Linux test boxes for dirty worktrees and CI hydration
 - `discrawl` — Mirror Discord into SQLite and search server history locally
 - `gitcrawl` — Local GitHub issue and PR archive with gh-compatible caching
 - `graincrawl` — Local-first Granola crawler into SQLite and Markdown
