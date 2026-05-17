@@ -22,7 +22,11 @@ brew install --cask openclaw/tap/<name>
 
 ### Formulae
 
+- `discrawl` — Mirror Discord into SQLite and search server history locally
 - `gitcrawl` — Local GitHub issue and PR archive with gh-compatible caching
+- `graincrawl` — Local-first Granola crawler into SQLite and Markdown
+- `notcrawl` — Local-first Notion crawler into SQLite and normalized Markdown
+- `slacrawl` — Go-based CLI for mirroring Slack workspace data into local SQLite
 
 ### Casks
 
