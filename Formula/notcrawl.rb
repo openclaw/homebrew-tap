@@ -1,26 +1,26 @@
 class Notcrawl < Formula
   desc "Local-first Notion crawler into SQLite and normalized Markdown"
   homepage "https://github.com/openclaw/notcrawl"
-  version "0.3.6"
+  version "0.4.0"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/notcrawl/releases/download/v0.3.6/notcrawl_0.3.6_darwin_arm64.tar.gz"
-      sha256 "abbeb4db9d076f76ad8f511bea6d4ff3e8c23cd2af540a3ab55117edf9db49dc"
+      url "https://github.com/openclaw/notcrawl/releases/download/v0.4.0/notcrawl_0.4.0_darwin_arm64.tar.gz"
+      sha256 "86c6480d9a4cef4f54e943075d5a0a684d74ca29524e707908c9b023e031a4b1"
     else
-      url "https://github.com/openclaw/notcrawl/releases/download/v0.3.6/notcrawl_0.3.6_darwin_amd64.tar.gz"
-      sha256 "e8b810ae99454e0a723b4e02241e6f034b94b4948b13969c48a6a9abdd9df76c"
+      url "https://github.com/openclaw/notcrawl/releases/download/v0.4.0/notcrawl_0.4.0_darwin_amd64.tar.gz"
+      sha256 "eeb6fd65006142d2fd1e40d4eac5790f7cdd6e77aa41edf7697c20469f069529"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
-      url "https://github.com/openclaw/notcrawl/releases/download/v0.3.6/notcrawl_0.3.6_linux_arm64.tar.gz"
-      sha256 "5cc09d3679839fd936fc1f30e808cd179fb9bec61575303a6201ee4a7f680d1e"
+      url "https://github.com/openclaw/notcrawl/releases/download/v0.4.0/notcrawl_0.4.0_linux_arm64.tar.gz"
+      sha256 "2d52a1c46c2df60008f3b37dbc91634befa079efa44f0a88afd197e3e40d9ca1"
     else
-      url "https://github.com/openclaw/notcrawl/releases/download/v0.3.6/notcrawl_0.3.6_linux_amd64.tar.gz"
-      sha256 "dea5c534f94757c97ddce774238e02744d300eb25f38b680ba374ade74ca72aa"
+      url "https://github.com/openclaw/notcrawl/releases/download/v0.4.0/notcrawl_0.4.0_linux_amd64.tar.gz"
+      sha256 "235fff1b661010ed77309d4fea0673ea7b6d5a5980b4f41d7fa0443710478213"
     end
   end
 
