@@ -8,7 +8,6 @@ on:
         description: "Formula name (e.g., gitcrawl)"
         required: true
         type: string
-        default: "gitcrawl"
       tag:
         description: "Release tag to update formula for"
         required: true
@@ -17,9 +16,36 @@ on:
         description: "Source repository (e.g., openclaw/gitcrawl)"
         required: true
         type: string
-        default: "openclaw/gitcrawl"
+      description:
+        description: "Formula description used when creating a missing formula"
+        required: false
+        type: string
+      macos_artifact:
+        description: "macOS artifact name (defaults to <formula>-macos-universal.tar.gz)"
+        required: false
+        type: string
+      linux_url:
+        description: "Linux archive URL (defaults to the GitHub tag archive)"
+        required: false
+        type: string
       artifact_template:
-        description: "Release asset template, e.g. {formula}_{version}_{target}.tar.gz"
+        description: "Multi-arch asset template, e.g. {formula}_{version}_{target}.tar.gz"
+        required: false
+        type: string
+      artifact_url:
+        description: "Direct artifact/source URL template for top-level formulae"
+        required: false
+        type: string
+      target_aliases:
+        description: "Comma-separated canonical=artifact-target aliases for custom asset names"
+        required: false
+        type: string
+      cask:
+        description: "Optional cask name to update with the same release"
+        required: false
+        type: string
+      cask_artifact:
+        description: "Release asset name for the optional cask"
         required: false
         type: string
       request_id:
@@ -35,67 +61,76 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout tap repository
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/checkout@v6
 
       - name: Setup Git
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Update formula
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          FORMULA="${{ github.event.inputs.formula }}"
-          TAG="${{ github.event.inputs.tag }}"
-          REPO="${{ github.event.inputs.repository }}"
-          VERSION="${TAG#v}"
-          ASSET_TEMPLATE="${{ github.event.inputs.artifact_template }}"
-          if [ -z "${ASSET_TEMPLATE}" ]; then
-            ASSET_TEMPLATE="{formula}_{version}_{target}.tar.gz"
+          args=(
+            --formula "${{ inputs.formula }}"
+            --tag "${{ inputs.tag }}"
+            --repository "${{ inputs.repository }}"
+          )
+
+          if [ -n "${{ inputs.description }}" ]; then
+            args+=(--description "${{ inputs.description }}")
           fi
-          export FORMULA TAG REPO VERSION ASSET_TEMPLATE
 
-          for TARGET in darwin_amd64 darwin_arm64 linux_amd64 linux_arm64; do
-            ASSET="${ASSET_TEMPLATE}"
-            ASSET="${ASSET//\{formula\}/${FORMULA}}"
-            ASSET="${ASSET//\{version\}/${VERSION}}"
-            ASSET="${ASSET//\{tag\}/${TAG}}"
-            ASSET="${ASSET//\{target\}/${TARGET}}"
-            URL="https://github.com/${REPO}/releases/download/${TAG}/${ASSET}"
-            curl -fsSL "${URL}" -o "${ASSET}"
-            SHA="$(shasum -a 256 "${ASSET}" | awk '{print $1}')"
-            export "URL_${TARGET}=${URL}"
-            export "SHA_${TARGET}=${SHA}"
-          done
+          if [ -n "${{ inputs.macos_artifact }}" ]; then
+            args+=(--macos-artifact "${{ inputs.macos_artifact }}")
+          fi
 
-          python3 <<'PY'
-          import os
-          import re
-          from pathlib import Path
+          if [ -n "${{ inputs.linux_url }}" ]; then
+            args+=(--linux-url "${{ inputs.linux_url }}")
+          fi
 
-          formula = os.environ["FORMULA"]
-          version = os.environ["VERSION"]
-          path = Path("Formula") / f"{formula}.rb"
-          text = path.read_text()
-          text = re.sub(r'version "[^"]+"', f'version "{version}"', text, count=1)
+          if [ -n "${{ inputs.artifact_template }}" ]; then
+            args+=(--artifact-template "${{ inputs.artifact_template }}")
+          fi
 
-          for target in ("darwin_amd64", "darwin_arm64", "linux_amd64", "linux_arm64"):
-              url = os.environ[f"URL_{target}"]
-              sha = os.environ[f"SHA_{target}"]
-              pattern = rf'url "https://github\.com/[^"]+/{formula}_[^"]+_{target}\.tar\.gz"\n\s+sha256 "[0-9a-f]+"'
-              replacement = f'url "{url}"\n      sha256 "{sha}"'
-              text, count = re.subn(pattern, replacement, text, count=1)
-              if count != 1:
-                  raise SystemExit(f"failed to update {target} in {path}")
+          if [ -n "${{ inputs.artifact_url }}" ]; then
+            args+=(--artifact-url "${{ inputs.artifact_url }}")
+          fi
 
-          path.write_text(text)
-          PY
+          if [ -n "${{ inputs.target_aliases }}" ]; then
+            args+=(--target-aliases "${{ inputs.target_aliases }}")
+          fi
+
+          if [ -n "${{ inputs.cask }}" ]; then
+            args+=(--cask "${{ inputs.cask }}")
+          fi
+
+          if [ -n "${{ inputs.cask_artifact }}" ]; then
+            args+=(--cask-artifact "${{ inputs.cask_artifact }}")
+          fi
+
+          python3 .github/scripts/update_formula.py "${args[@]}"
+
+      - name: Commit and push
+        run: |
+          FORMULA="${{ inputs.formula }}"
+          TAG="${{ inputs.tag }}"
+          CASK="${{ inputs.cask }}"
 
           git add "Formula/${FORMULA}.rb"
+          if [ -n "$CASK" ]; then
+            git add "Casks/${CASK}.rb"
+          fi
+
           if git diff --cached --quiet; then
-            echo "Formula/${FORMULA}.rb already up to date"
+            echo "Formula/${FORMULA}.rb${CASK:+ and Casks/${CASK}.rb} already up to date"
             exit 0
           fi
-          git commit -m "chore: update ${FORMULA} to ${TAG}"
+
+          if [ -n "$CASK" ]; then
+            git commit -m "${FORMULA}: update formula and cask for ${TAG}"
+          else
+            git commit -m "${FORMULA}: update formula for ${TAG}"
+          fi
           git push
