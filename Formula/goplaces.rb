@@ -5,21 +5,21 @@
 class Goplaces < Formula
   desc "Modern Go client + CLI for the Google Places API (New)."
   homepage "https://github.com/openclaw/goplaces"
-  version "0.4.2"
+  version "0.4.3"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.intel?
-      url "https://github.com/openclaw/goplaces/releases/download/v0.4.2/goplaces_0.4.2_darwin_amd64.tar.gz"
-      sha256 "71d8987d4ac3b31eec66dc8e338a10a78d6e6e8528b7f1e2780c77a66500c942"
+      url "https://github.com/openclaw/goplaces/releases/download/v0.4.3/goplaces_0.4.3_darwin_amd64.tar.gz"
+      sha256 "a6a3fee385a0491fad1d05b9ce6ab631322e8a058f2a8961465dc2097b702287"
 
       define_method(:install) do
         bin.install "goplaces"
       end
     end
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/goplaces/releases/download/v0.4.2/goplaces_0.4.2_darwin_arm64.tar.gz"
-      sha256 "69e7a5b7452f6f095694d3f8ede86df6d2287cbbd3371f31c806826d828b5f26"
+      url "https://github.com/openclaw/goplaces/releases/download/v0.4.3/goplaces_0.4.3_darwin_arm64.tar.gz"
+      sha256 "6b477d1fade3aa467031d537e43f9aa66704e100180f29d190cbf695fe1e8039"
 
       define_method(:install) do
         bin.install "goplaces"
@@ -29,15 +29,15 @@ class Goplaces < Formula
 
   on_linux do
     if Hardware::CPU.intel? && Hardware::CPU.is_64_bit?
-      url "https://github.com/openclaw/goplaces/releases/download/v0.4.2/goplaces_0.4.2_linux_amd64.tar.gz"
-      sha256 "26689c165dac3d64741193487807f2ac48263bd68e431a69a86384cf212a8ea9"
+      url "https://github.com/openclaw/goplaces/releases/download/v0.4.3/goplaces_0.4.3_linux_amd64.tar.gz"
+      sha256 "d9d051fc3ee1c57d0853a90795f67ff19bab2474ceb5a7167bed1a56c7652396"
       define_method(:install) do
         bin.install "goplaces"
       end
     end
     if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
-      url "https://github.com/openclaw/goplaces/releases/download/v0.4.2/goplaces_0.4.2_linux_arm64.tar.gz"
-      sha256 "96edb8918cb8b2df4d34c49349fc6aeae91ee94fd4d5e008441952aac1637d56"
+      url "https://github.com/openclaw/goplaces/releases/download/v0.4.3/goplaces_0.4.3_linux_arm64.tar.gz"
+      sha256 "8d8cb6566c73dc83ffe0fc354e0432e4ee6737caa29c7247c6aaa121397819f2"
       define_method(:install) do
         bin.install "goplaces"
       end
