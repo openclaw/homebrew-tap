@@ -3,30 +3,26 @@ class Wacli < Formula
   homepage "https://github.com/openclaw/wacli"
   license "MIT"
   head "https://github.com/openclaw/wacli.git", branch: "main"
-
   on_macos do
-    on_arm do
-      url "https://github.com/openclaw/wacli/releases/download/v0.9.2/wacli-macos-universal.tar.gz"
-      sha256 "9d61fbbf7128cadab5d4c3cafde3b6e14f7d3b87bdfff3ce505ecc458ba32bc4"
+    if Hardware::CPU.arm?
+      url "https://github.com/openclaw/wacli/releases/download/v0.10.0/wacli_0.10.0_darwin_arm64.tar.gz"
+      sha256 "a0c5c44dd22764d862fef2a1ff5aa65997e535b8b40db2c5b2ec04bfdb58ef42"
     end
 
-    on_intel do
-      url "https://github.com/openclaw/wacli/releases/download/v0.9.2/wacli-macos-universal.tar.gz"
-      sha256 "9d61fbbf7128cadab5d4c3cafde3b6e14f7d3b87bdfff3ce505ecc458ba32bc4"
+    if Hardware::CPU.intel?
+      url "https://github.com/openclaw/wacli/releases/download/v0.10.0/wacli_0.10.0_darwin_amd64.tar.gz"
+      sha256 "3a1b1f35190ac81fb25cdd3fc991641acd93e6711a79b4d4cdea9b54332a2962"
     end
   end
-
   on_linux do
-    depends_on "go" => :build
-
-    on_arm do
-      url "https://github.com/openclaw/wacli/archive/refs/tags/v0.9.2.tar.gz"
-      sha256 "34c33ce2fdbcc3460a1b4868db7b47fb523cbaff462b502138f67c0f9cd5fbe8"
+    if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
+      url "https://github.com/openclaw/wacli/releases/download/v0.10.0/wacli_0.10.0_linux_arm64.tar.gz"
+      sha256 "7cdd0b5297e09230709bb50266e9f90436a876140af82cb725a8c3621bbe74b1"
     end
 
-    on_intel do
-      url "https://github.com/openclaw/wacli/archive/refs/tags/v0.9.2.tar.gz"
-      sha256 "34c33ce2fdbcc3460a1b4868db7b47fb523cbaff462b502138f67c0f9cd5fbe8"
+    if Hardware::CPU.intel? && Hardware::CPU.is_64_bit?
+      url "https://github.com/openclaw/wacli/releases/download/v0.10.0/wacli_0.10.0_linux_amd64.tar.gz"
+      sha256 "96a0b05937f0e129ab9bf6c0fcd30e4250ae764e4290a80743d10ed9d40e23eb"
     end
   end
 
