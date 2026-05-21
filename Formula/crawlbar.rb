@@ -15,6 +15,7 @@ class Crawlbar < Formula
 
     app_binary = Pathname(Dir[".build/**/release/CrawlBar"].first)
     cli_binary = Pathname(Dir[".build/**/release/crawlbarctl"].first)
+    resource_bundle = Pathname(Dir[".build/**/release/CrawlBar_CrawlBar.bundle"].first)
 
     app = prefix/"CrawlBar.app"
     contents = app/"Contents"
@@ -23,6 +24,7 @@ class Crawlbar < Formula
     resources = contents/"Resources"
     macos.install app_binary
     helpers.install cli_binary => "crawlbar"
+    app.install resource_bundle
     bin.write_exec_script helpers/"crawlbar"
     system "Scripts/generate_app_icon.swift", resources/"CrawlBar.icns"
     (contents/"Info.plist").write <<~PLIST
@@ -65,5 +67,6 @@ class Crawlbar < Formula
 
   test do
     assert_match "crawlbar commands:", shell_output("#{bin}/crawlbar --help")
+    assert_path_exists prefix/"CrawlBar.app/CrawlBar_CrawlBar.bundle/google.png"
   end
 end
