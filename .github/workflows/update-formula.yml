@@ -58,7 +58,7 @@ permissions:
 
 jobs:
   update-formula:
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - name: Checkout tap repository
         uses: actions/checkout@v6
