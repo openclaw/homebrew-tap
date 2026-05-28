@@ -1,6 +1,6 @@
-![Homebrew Tap banner](docs/assets/readme-banner.jpg)
-
 # OpenClaw Homebrew Tap
+
+![Homebrew Tap banner](docs/assets/readme-banner.jpg)
 
 Homebrew tap for shipping OpenClaw CLI tools.
 
