@@ -1,6 +1,7 @@
 class Wacli < Formula
   desc "WhatsApp CLI built on whatsmeow"
   homepage "https://github.com/openclaw/wacli"
+  version "0.11.0"
   license "MIT"
   head "https://github.com/openclaw/wacli.git", branch: "main"
   on_macos do
