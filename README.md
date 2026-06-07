@@ -33,6 +33,7 @@ brew install --cask openclaw/tap/<name>
 - `notcrawl` — Local-first Notion crawler into SQLite and normalized Markdown
 - `slacrawl` — Go-based CLI for mirroring Slack workspace data into local SQLite
 - `wacli` — WhatsApp CLI built on whatsmeow
+- `wacrawl` — Read-only WhatsApp Desktop archive CLI
 
 ### Casks
 
