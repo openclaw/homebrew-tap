@@ -1,26 +1,26 @@
 class Wacrawl < Formula
   desc "Read-only WhatsApp Desktop archive CLI"
   homepage "https://github.com/openclaw/wacrawl"
-  version "0.2.5"
+  version "0.2.6"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/openclaw/wacrawl/releases/download/v#{version}/wacrawl_#{version}_darwin_arm64.tar.gz"
-      sha256 "9ed2270135b7037fd8db34824e30cbd6eb36fcb2f14e8b7c75189489ff90e5fe"
+      sha256 "1c810be5d2fe1597365c5879d55dae4a37150c54e8ebb3c73326789187242438"
     else
       url "https://github.com/openclaw/wacrawl/releases/download/v#{version}/wacrawl_#{version}_darwin_amd64.tar.gz"
-      sha256 "41cf91669861e7d21882247b4baed979f316e3957a2dea779215c95c6d773903"
+      sha256 "9c303115d3eb99e787f4615cf56cdbe82b6e06f925b55ae8bc03c054d7d4190b"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
       url "https://github.com/openclaw/wacrawl/releases/download/v#{version}/wacrawl_#{version}_linux_arm64.tar.gz"
-      sha256 "420917f7b9021f47daa5d10adf0fc9fd4d7d5d9a8ff225685b0c4800117db1df"
+      sha256 "3f4de740b403ebe24514ff7c582cddc32f01fdfe2cf6cb6ba2d37c5eb7df2259"
     else
       url "https://github.com/openclaw/wacrawl/releases/download/v#{version}/wacrawl_#{version}_linux_amd64.tar.gz"
-      sha256 "4fc3021f049d818e2b4a706a3b19f3eb05076cff61d2ddbb5378bf2fb350bad7"
+      sha256 "8c01ad483b02a6d6410c7dc10c9cd0e28b33b7bc8e0fd1890823e4839b95c1c7"
     end
   end
 
