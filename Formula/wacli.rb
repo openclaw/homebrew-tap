@@ -1,6 +1,7 @@
 class Wacli < Formula
   desc "WhatsApp CLI built on whatsmeow"
   homepage "https://github.com/openclaw/wacli"
+  version "0.11.1"
   license "MIT"
   head "https://github.com/openclaw/wacli.git", branch: "main"
   on_macos do
@@ -40,7 +41,7 @@ class Wacli < Formula
   end
 
   test do
-    assert_match "wacli", shell_output("#{bin}/wacli --version")
+    assert_match version.to_s, shell_output("#{bin}/wacli --version")
     assert_match "FTS5", shell_output("#{bin}/wacli doctor")
   end
 end
