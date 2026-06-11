@@ -5,24 +5,24 @@ class Wacli < Formula
   head "https://github.com/openclaw/wacli.git", branch: "main"
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/wacli/releases/download/v0.11.0/wacli_0.11.0_darwin_arm64.tar.gz"
-      sha256 "0f4346fd054ff58d73fbbb91da510eb70b643af049fa819d9a365b4b1c6872f5"
+      url "https://github.com/openclaw/wacli/releases/download/v0.11.1/wacli_0.11.1_darwin_arm64.tar.gz"
+      sha256 "8d31c923994f0d7b3579c544de3ca760192d8506174758eaf55050d91675885d"
     end
 
     if Hardware::CPU.intel?
-      url "https://github.com/openclaw/wacli/releases/download/v0.11.0/wacli_0.11.0_darwin_amd64.tar.gz"
-      sha256 "094fa710bfcbab0a78ff9060d8e2b5f6805b9da5e0072ee2ab24bffd0d736d6c"
+      url "https://github.com/openclaw/wacli/releases/download/v0.11.1/wacli_0.11.1_darwin_amd64.tar.gz"
+      sha256 "d07bdac1c7a4a7e697a4df6f4f65ad72d705b4fa65e55726868134fdf2449a8d"
     end
   end
   on_linux do
     if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
-      url "https://github.com/openclaw/wacli/releases/download/v0.11.0/wacli_0.11.0_linux_arm64.tar.gz"
-      sha256 "8e50fd66ff6f381662666563376172ce2e1b44ad5410af4e6c276cc0c7765055"
+      url "https://github.com/openclaw/wacli/releases/download/v0.11.1/wacli_0.11.1_linux_arm64.tar.gz"
+      sha256 "3ff0cf7df8f0ce5705570b67623a144b34a1ad433df308deaed2e604596f130c"
     end
 
     if Hardware::CPU.intel? && Hardware::CPU.is_64_bit?
-      url "https://github.com/openclaw/wacli/releases/download/v0.11.0/wacli_0.11.0_linux_amd64.tar.gz"
-      sha256 "8fe8f14694cd439b066db8ced8689cff5653f4aac1904b25a639e1560492ae43"
+      url "https://github.com/openclaw/wacli/releases/download/v0.11.1/wacli_0.11.1_linux_amd64.tar.gz"
+      sha256 "07c8e7d01673d6fea92e98175f8bde4b9b17846cc46d857f91b268bf7cb8bf98"
     end
   end
 
