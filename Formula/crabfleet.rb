@@ -1,26 +1,26 @@
 class Crabfleet < Formula
   desc "Crabfleet crabbox CLI"
   homepage "https://github.com/openclaw/crabfleet"
-  version "0.1.0"
+  version "0.2.0"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/openclaw/crabfleet/releases/download/v#{version}/crabfleet_#{version}_darwin_arm64.tar.gz"
-      sha256 "b5fbbc0724f1865a6b4ae13a02ab3a489226e5ac7be180a5b56439b359c712c0"
+      sha256 "d91c93cc629e0b19db7f7640ffef67b66dab8f3c92ff3f8f051ec2cbdb1237fb"
     else
       url "https://github.com/openclaw/crabfleet/releases/download/v#{version}/crabfleet_#{version}_darwin_amd64.tar.gz"
-      sha256 "47967f60a5d2b02c1963290b8ef7311ac4f85df77b506c96c6aa601ff43eee61"
+      sha256 "bb496f04bf2c007595e959ebe8d6b55b232fa6220beb0f197379dadf2fee2e05"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
       url "https://github.com/openclaw/crabfleet/releases/download/v#{version}/crabfleet_#{version}_linux_arm64.tar.gz"
-      sha256 "9e95912e93d09cda1c0c6c805448797e2f065d2ae49bb49ec51212a9c30f30d4"
+      sha256 "1d6a31b3547c96464a127f501d7c275169e2575dcfa7f5b7a8ca71617c79dbb8"
     else
       url "https://github.com/openclaw/crabfleet/releases/download/v#{version}/crabfleet_#{version}_linux_amd64.tar.gz"
-      sha256 "5707b9b296751af90f0e31d8d9ceb5586b4b30b9259984d2a8073e49d9dce8e2"
+      sha256 "fc7dbae93e0d87b952763a35a0347624b6356f1af61a8a5a679f9c66e66d7cdc"
     end
   end
 
