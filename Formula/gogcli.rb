@@ -1,26 +1,26 @@
 class Gogcli < Formula
   desc "Google CLI for Gmail, Calendar, Drive, Docs, Sheets, and more"
   homepage "https://github.com/openclaw/gogcli"
-  version "0.27.0"
+  version "0.27.1"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/gogcli/releases/download/v0.27.0/gogcli_0.27.0_darwin_arm64.tar.gz"
-      sha256 "6246bc1d95e54bf964d8a0213c124c86f37ef474ba5432aeb0714d150e808029"
+      url "https://github.com/openclaw/gogcli/releases/download/v0.27.1/gogcli_0.27.1_darwin_arm64.tar.gz"
+      sha256 "a0d5c737c6180ba3c60a6c17ca5ee11c6705161d4884ac579d4c46f7b7718e34"
     else
-      url "https://github.com/openclaw/gogcli/releases/download/v0.27.0/gogcli_0.27.0_darwin_amd64.tar.gz"
-      sha256 "6b1ff31bddcd381416399915abb6c6dfef960f8c2c5847a55e3f970f12af4700"
+      url "https://github.com/openclaw/gogcli/releases/download/v0.27.1/gogcli_0.27.1_darwin_amd64.tar.gz"
+      sha256 "17088ee3bcc4ad25b2ff6e9624af18bc0ebd85e9acc130529323c486d5648dfb"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/gogcli/releases/download/v0.27.0/gogcli_0.27.0_linux_arm64.tar.gz"
-      sha256 "1b43a4d266d3bbf978e2435b91924a36a38f28d65cb9928771228d5f0974f65a"
+      url "https://github.com/openclaw/gogcli/releases/download/v0.27.1/gogcli_0.27.1_linux_arm64.tar.gz"
+      sha256 "62c59abcc7bd53c4ac6d0219b4258d77b33d4f5b215a24b966e541b5718ba8f2"
     else
-      url "https://github.com/openclaw/gogcli/releases/download/v0.27.0/gogcli_0.27.0_linux_amd64.tar.gz"
-      sha256 "b5e2291e720782b28752e1da945cac8aa9a51421037c8a19f1544dcc8c169ce9"
+      url "https://github.com/openclaw/gogcli/releases/download/v0.27.1/gogcli_0.27.1_linux_amd64.tar.gz"
+      sha256 "aee2b477428e81633a1af77226ea3b31ab0d78a7137a057bb131cd1297b588f5"
     end
   end
 
