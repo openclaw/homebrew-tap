@@ -1,8 +1,8 @@
 class Crawlbar < Formula
   desc "macOS menu bar control plane for local-first crawler CLIs"
   homepage "https://github.com/openclaw/crawlbar"
-  url "https://github.com/openclaw/crawlbar/archive/refs/tags/v0.3.0.tar.gz"
-  sha256 "7737c08c4341b84da2200fcff08e49dd741943c9d17ce11030f059f8140deebb"
+  url "https://github.com/openclaw/crawlbar/archive/refs/tags/v0.4.0.tar.gz"
+  sha256 "f4ba18c1f1d10f6ee64a06167fc9cd7400b9b1fd5e0e7ea10d6cf87635dedc88"
   license "MIT"
   head "https://github.com/openclaw/crawlbar.git", branch: "main"
 
@@ -43,7 +43,7 @@ class Crawlbar < Formula
         <key>CFBundlePackageType</key>
         <string>APPL</string>
         <key>CFBundleShortVersionString</key>
-        <string>0.3.0</string>
+        <string>0.4.0</string>
         <key>CFBundleVersion</key>
         <string>1</string>
         <key>LSUIElement</key>
