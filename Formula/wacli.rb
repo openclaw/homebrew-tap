@@ -2,9 +2,12 @@ class Wacli < Formula
   desc "WhatsApp CLI built on whatsmeow"
   homepage "https://github.com/openclaw/wacli"
   version "0.11.1"
-  version_scheme 1
   license "MIT"
+  version_scheme 1
   head "https://github.com/openclaw/wacli.git", branch: "main"
+
+  depends_on "go" => :build if build.head?
+
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/openclaw/wacli/releases/download/v0.11.1/wacli_0.11.1_darwin_arm64.tar.gz"
