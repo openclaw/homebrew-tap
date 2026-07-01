@@ -1,5 +1,5 @@
 class Crabfleet < Formula
-  desc "Crabfleet crabbox CLI"
+  desc "Fleet management CLI for Crabbox workers"
   homepage "https://github.com/openclaw/crabfleet"
   version "0.2.1"
   license "MIT"
