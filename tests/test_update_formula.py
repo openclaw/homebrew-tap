@@ -14,6 +14,62 @@ SPEC.loader.exec_module(update_formula)
 
 
 class UpdateFormulaTest(unittest.TestCase):
+    def test_validates_dispatch_identifiers(self) -> None:
+        self.assertEqual(update_formula.validate_tap_token("gogcli", "formula"), "gogcli")
+        self.assertEqual(update_formula.validate_repository("openclaw/gogcli"), "openclaw/gogcli")
+        self.assertEqual(update_formula.validate_release_tag("v1.2.3-beta.1"), "v1.2.3-beta.1")
+
+        invalid_values = (
+            (update_formula.validate_tap_token, ("../../README", "formula")),
+            (update_formula.validate_repository, ("openclaw/gogcli/extra",)),
+            (update_formula.validate_release_tag, ('v1.2.3"\nsystem("id")',)),
+        )
+        for validator, arguments in invalid_values:
+            with self.subTest(arguments=arguments), self.assertRaises(SystemExit):
+                validator(*arguments)
+
+    def test_validates_templates_aliases_and_urls(self) -> None:
+        self.assertEqual(
+            update_formula.validate_template(
+                "{formula}_{version}_{target}.tar.gz",
+                "artifact template",
+            ),
+            "{formula}_{version}_{target}.tar.gz",
+        )
+        self.assertEqual(
+            update_formula.parse_target_aliases("darwin_arm64=macos-arm64,linux_amd64=linux-x86_64"),
+            {"darwin_arm64": "macos-arm64", "linux_amd64": "linux-x86_64"},
+        )
+        self.assertEqual(
+            update_formula.validate_url("https://github.com/openclaw/gogcli", "URL"),
+            "https://github.com/openclaw/gogcli",
+        )
+
+        for value in ("{unknown}.tar.gz", "{formula.__class__}.tar.gz"):
+            with self.subTest(template=value), self.assertRaises(SystemExit):
+                update_formula.validate_template(value, "artifact template")
+        for value in (
+            "file:///etc/passwd",
+            "http://github.com/openclaw/gogcli",
+            "https://user@github.com/repo",
+            'https://github.com/openclaw/example/releases/download/v1.0.0/evil"#{system}.tar.gz',
+        ):
+            with self.subTest(url=value), self.assertRaises(SystemExit):
+                update_formula.validate_url(value, "URL")
+        with self.assertRaises(SystemExit):
+            update_formula.parse_target_aliases("unknown=linux-amd64")
+
+    def test_seed_formula_escapes_ruby_description(self) -> None:
+        seeded = update_formula.seed_formula(
+            "example",
+            "openclaw/example",
+            "1.2.3",
+            'A "quoted" #{system("id")} description',
+            "{formula}_{version}_{target}.tar.gz",
+        )
+
+        self.assertIn(r'desc "A \"quoted\" \#{system(\"id\")} description"', seeded)
+
     def test_updates_duplicate_source_url_checksums_in_stanza(self) -> None:
         text = '''class Camsnap < Formula
   version "0.2.0"
