@@ -61,7 +61,7 @@ jobs:
     runs-on: macos-15
     steps:
       - name: Checkout tap repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Setup Git
         run: |
@@ -70,54 +70,72 @@ jobs:
 
       - name: Update formula
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_TEMPLATE: ${{ inputs.artifact_template }}
+          ARTIFACT_URL: ${{ inputs.artifact_url }}
+          CASK: ${{ inputs.cask }}
+          CASK_ARTIFACT: ${{ inputs.cask_artifact }}
+          DESCRIPTION: ${{ inputs.description }}
+          FORMULA: ${{ inputs.formula }}
+          LINUX_URL: ${{ inputs.linux_url }}
+          MACOS_ARTIFACT: ${{ inputs.macos_artifact }}
+          REPOSITORY: ${{ inputs.repository }}
+          TAG: ${{ inputs.tag }}
+          TARGET_ALIASES: ${{ inputs.target_aliases }}
         run: |
           args=(
-            --formula "${{ inputs.formula }}"
-            --tag "${{ inputs.tag }}"
-            --repository "${{ inputs.repository }}"
+            --formula "$FORMULA"
+            --tag "$TAG"
+            --repository "$REPOSITORY"
           )
 
-          if [ -n "${{ inputs.description }}" ]; then
-            args+=(--description "${{ inputs.description }}")
+          if [ -n "$DESCRIPTION" ]; then
+            args+=(--description "$DESCRIPTION")
           fi
 
-          if [ -n "${{ inputs.macos_artifact }}" ]; then
-            args+=(--macos-artifact "${{ inputs.macos_artifact }}")
+          if [ -n "$MACOS_ARTIFACT" ]; then
+            args+=(--macos-artifact "$MACOS_ARTIFACT")
           fi
 
-          if [ -n "${{ inputs.linux_url }}" ]; then
-            args+=(--linux-url "${{ inputs.linux_url }}")
+          if [ -n "$LINUX_URL" ]; then
+            args+=(--linux-url "$LINUX_URL")
           fi
 
-          if [ -n "${{ inputs.artifact_template }}" ]; then
-            args+=(--artifact-template "${{ inputs.artifact_template }}")
+          if [ -n "$ARTIFACT_TEMPLATE" ]; then
+            args+=(--artifact-template "$ARTIFACT_TEMPLATE")
           fi
 
-          if [ -n "${{ inputs.artifact_url }}" ]; then
-            args+=(--artifact-url "${{ inputs.artifact_url }}")
+          if [ -n "$ARTIFACT_URL" ]; then
+            args+=(--artifact-url "$ARTIFACT_URL")
           fi
 
-          if [ -n "${{ inputs.target_aliases }}" ]; then
-            args+=(--target-aliases "${{ inputs.target_aliases }}")
+          if [ -n "$TARGET_ALIASES" ]; then
+            args+=(--target-aliases "$TARGET_ALIASES")
           fi
 
-          if [ -n "${{ inputs.cask }}" ]; then
-            args+=(--cask "${{ inputs.cask }}")
+          if [ -n "$CASK" ]; then
+            args+=(--cask "$CASK")
           fi
 
-          if [ -n "${{ inputs.cask_artifact }}" ]; then
-            args+=(--cask-artifact "${{ inputs.cask_artifact }}")
+          if [ -n "$CASK_ARTIFACT" ]; then
+            args+=(--cask-artifact "$CASK_ARTIFACT")
           fi
 
           python3 .github/scripts/update_formula.py "${args[@]}"
 
-      - name: Commit and push
+      - name: Validate update
         run: |
-          FORMULA="${{ inputs.formula }}"
-          TAG="${{ inputs.tag }}"
-          CASK="${{ inputs.cask }}"
+          python3 -m unittest discover -s tests -v
+          for formula in Formula/*.rb; do
+            ruby -c "$formula"
+          done
+          brew style Formula/*.rb
 
+      - name: Commit and push
+        env:
+          CASK: ${{ inputs.cask }}
+          FORMULA: ${{ inputs.formula }}
+          TAG: ${{ inputs.tag }}
+        run: |
           git add "Formula/${FORMULA}.rb"
           if [ -n "$CASK" ]; then
             git add "Casks/${CASK}.rb"
@@ -133,4 +151,20 @@ jobs:
           else
             git commit -m "${FORMULA}: update formula for ${TAG}"
           fi
-          git push
+
+          for attempt in 1 2 3; do
+            if git push; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "git push failed after ${attempt} attempts" >&2
+              exit 1
+            fi
+
+            git pull --rebase origin main
+            python3 -m unittest discover -s tests -v
+            for formula in Formula/*.rb; do
+              ruby -c "$formula"
+            done
+            brew style Formula/*.rb
+          done

@@ -11,23 +11,95 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import os
 import pathlib
 import re
+import string
 import sys
+import urllib.parse
 import urllib.request
 
 
 USER_AGENT = "steipete-homebrew-tap-updater"
+TAP_TOKEN_PATTERN = re.compile(r"[a-z0-9][a-z0-9+@._-]*")
+REPOSITORY_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9][A-Za-z0-9_.-]*")
+RELEASE_TAG_PATTERN = re.compile(r"v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?")
+ARTIFACT_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9+@._-]*")
+RELEASE_TARGETS = ("darwin_amd64", "darwin_arm64", "linux_amd64", "linux_arm64")
+CANONICAL_TARGETS = frozenset(("darwin_universal", *RELEASE_TARGETS))
+TEMPLATE_FIELDS = frozenset(("formula", "version", "tag", "target"))
+
+
+def validate_tap_token(value: str, description: str) -> str:
+    if not TAP_TOKEN_PATTERN.fullmatch(value):
+        raise SystemExit(f"invalid {description} {value!r}; expected a Homebrew-safe token")
+    return value
+
+
+def validate_repository(value: str) -> str:
+    if not REPOSITORY_PATTERN.fullmatch(value):
+        raise SystemExit(f"invalid repository {value!r}; expected owner/repo")
+    return value
+
+
+def validate_release_tag(value: str) -> str:
+    if not RELEASE_TAG_PATTERN.fullmatch(value):
+        raise SystemExit(f"invalid release tag {value!r}; expected a semantic version such as v1.2.3")
+    return value
+
+
+def validate_template(value: str, description: str, allowed_fields: frozenset[str] = TEMPLATE_FIELDS) -> str:
+    try:
+        parsed = tuple(string.Formatter().parse(value))
+    except ValueError as error:
+        raise SystemExit(f"invalid {description}: {error}") from error
+
+    for _, field_name, format_spec, conversion in parsed:
+        if field_name is None:
+            continue
+        if field_name not in allowed_fields or format_spec or conversion:
+            raise SystemExit(f"invalid {description} placeholder {field_name!r}")
+    return value
+
+
+def validate_artifact_token(value: str, description: str) -> str:
+    if not ARTIFACT_TOKEN_PATTERN.fullmatch(value):
+        raise SystemExit(f"invalid {description} {value!r}; expected a release asset filename")
+    return value
+
+
+def validate_url(value: str, description: str) -> str:
+    if any(character.isspace() or ord(character) < 32 for character in value):
+        raise SystemExit(f"invalid {description}; whitespace and control characters are not allowed")
+    if '"' in value or "\\" in value or "#{" in value:
+        raise SystemExit(f"invalid {description}; unsafe Ruby string characters are not allowed")
+    parsed = urllib.parse.urlsplit(value)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.fragment:
+        raise SystemExit(f"invalid {description} {value!r}; expected an HTTPS URL without credentials or fragments")
+    return value
+
+
+def tap_path(directory: str, token: str) -> pathlib.Path:
+    relative = pathlib.Path(directory) / f"{token}.rb"
+    expected_parent = (pathlib.Path.cwd() / directory).resolve()
+    if (pathlib.Path.cwd() / relative).resolve().parent != expected_parent:
+        raise SystemExit(f"invalid {directory} path for {token!r}")
+    return relative
+
+
+def ruby_string(value: str) -> str:
+    escaped = (
+        value.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("#{", "\\#{")
+        .replace("\r", "\\r")
+        .replace("\n", "\\n")
+    )
+    return f'"{escaped}"'
 
 
 def sha256(url: str) -> str:
-    headers = {"User-Agent": USER_AGENT}
-    token = os.environ.get("GITHUB_TOKEN")
-    if token and url.startswith("https://github.com/"):
-        headers["Authorization"] = f"Bearer {token}"
-
-    request = urllib.request.Request(url, headers=headers)
+    validate_url(url, "download URL")
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     digest = hashlib.sha256()
     with urllib.request.urlopen(request) as response:
         while chunk := response.read(1024 * 1024):
@@ -74,7 +146,13 @@ def parse_target_aliases(value: str | None) -> dict[str, str]:
         if "=" not in item:
             raise SystemExit(f"invalid target alias {item!r}; expected canonical=artifact-target")
         canonical, artifact_target = item.split("=", 1)
-        aliases[canonical.strip()] = artifact_target.strip()
+        canonical = canonical.strip()
+        artifact_target = artifact_target.strip()
+        if canonical not in CANONICAL_TARGETS:
+            raise SystemExit(f"invalid canonical target {canonical!r}")
+        if canonical in aliases:
+            raise SystemExit(f"duplicate canonical target {canonical!r}")
+        aliases[canonical] = validate_artifact_token(artifact_target, f"alias for {canonical}")
     return aliases
 
 
@@ -238,7 +316,7 @@ def seed_formula(formula: str, repository: str, version: str, description: str, 
 
     class_name = ruby_class_name(formula)
     return f'''class {class_name} < Formula
-  desc "{description}"
+  desc {ruby_string(description)}
   homepage "https://github.com/{repository}"
   version "{version}"
   license "MIT"
@@ -457,10 +535,11 @@ def update_version(text: str, version: str) -> str:
 
 
 def update_cask(cask: str, repository: str, tag: str, artifact: str) -> None:
+    validate_artifact_token(artifact, "cask artifact")
     version = tag[1:] if tag.startswith("v") else tag
     url = f"https://github.com/{repository}/releases/download/{tag}/{artifact}"
     digest = sha256(url)
-    path = pathlib.Path("Casks") / f"{cask}.rb"
+    path = tap_path("Casks", cask)
     if not path.exists():
         raise SystemExit(f"{path} does not exist; cask creation needs a manual template")
 
@@ -538,20 +617,54 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    args.formula = validate_tap_token(args.formula, "formula")
+    args.repository = validate_repository(args.repository)
+    args.tag = validate_release_tag(args.tag)
+    if args.cask:
+        args.cask = validate_tap_token(args.cask, "cask")
+    if args.macos_artifact:
+        validate_artifact_token(args.macos_artifact, "macOS artifact")
+    if args.linux_url:
+        validate_url(args.linux_url, "Linux URL")
+    if args.artifact_template:
+        validate_template(args.artifact_template, "artifact template")
+    if args.artifact_url:
+        validate_template(args.artifact_url, "artifact URL template", frozenset(("formula", "version", "tag")))
+    if args.cask_artifact:
+        validate_template(args.cask_artifact, "cask artifact template", frozenset(("formula", "version", "tag")))
+
     version = args.tag[1:] if args.tag.startswith("v") else args.tag
     if args.cask and not args.cask_artifact:
         raise SystemExit("--cask-artifact is required when --cask is set")
+    target_aliases = parse_target_aliases(args.target_aliases)
+    if args.artifact_template:
+        for target in RELEASE_TARGETS:
+            artifact_target = target_aliases.get(target, target)
+            artifact = format_template(
+                args.artifact_template,
+                args.formula,
+                version,
+                args.tag,
+                artifact_target,
+            )
+            validate_artifact_token(artifact, f"artifact for {target}")
+    cask_artifact = None
+    if args.cask_artifact:
+        cask_artifact = format_template(args.cask_artifact, args.formula, version, args.tag)
+        validate_artifact_token(cask_artifact, "cask artifact")
 
     macos_artifact = args.macos_artifact or f"{args.formula}-macos-universal.tar.gz"
+    validate_artifact_token(macos_artifact, "macOS artifact")
     macos_url = (
         format_template(args.artifact_url, args.formula, version, args.tag)
         if args.artifact_url
         else f"https://github.com/{args.repository}/releases/download/{args.tag}/{macos_artifact}"
     )
     linux_url = args.linux_url or f"https://github.com/{args.repository}/archive/refs/tags/{args.tag}.tar.gz"
-    target_aliases = parse_target_aliases(args.target_aliases)
+    validate_url(macos_url, "macOS URL")
+    validate_url(linux_url, "Linux URL")
 
-    path = pathlib.Path("Formula") / f"{args.formula}.rb"
+    path = tap_path("Formula", args.formula)
     if not path.exists():
         template = args.artifact_template or "{formula}_{version}_{target}.tar.gz"
         description = args.description or f"{args.formula} command-line tool"
@@ -562,7 +675,6 @@ def main() -> int:
     text = update_repository_metadata(text, args.repository)
     has_macos = has_stanza(text, "on_macos")
     has_linux = has_stanza(text, "on_linux")
-    targets = ("darwin_amd64", "darwin_arm64", "linux_amd64", "linux_arm64")
     url_sha_pairs = iter_url_sha_pairs(text)
     classified_pairs = [(match, classify_target(match.group("url"), target_aliases, version)) for match in url_sha_pairs]
     target_url_count = sum(1 for _, target in classified_pairs if target)
@@ -627,7 +739,7 @@ def main() -> int:
             replacements.append((match.start(), match.end(), replacement))
             seen_targets.add(target)
             print(f"{target}: {digest}  {url}")
-        for target in sorted(set(targets).intersection(seen_targets ^ set(targets))):
+        for target in sorted(set(RELEASE_TARGETS).intersection(seen_targets ^ set(RELEASE_TARGETS))):
             if target_url_count >= 4:
                 raise SystemExit(f"failed to update {target} in {path}")
         for start, end, replacement in reversed(replacements):
@@ -659,7 +771,7 @@ def main() -> int:
 
     print(f"updated {path} to {version}")
     if args.cask:
-        cask_artifact = format_template(args.cask_artifact, args.formula, version, args.tag)
+        assert cask_artifact is not None
         update_cask(args.cask, args.repository, args.tag, cask_artifact)
     return 0
 

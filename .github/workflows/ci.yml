@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - name: Checkout tap repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Run updater tests
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Validate formula syntax
+        run: |
+          for formula in Formula/*.rb; do
+            ruby -c "$formula"
+          done
+
+      - name: Validate Homebrew style
+        run: brew style Formula/*.rb
