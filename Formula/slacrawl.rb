@@ -29,6 +29,6 @@ class Slacrawl < Formula
   end
 
   test do
-    assert_match "Usage of slacrawl:", shell_output("#{bin}/slacrawl --help", 1)
+    assert_match "Usage of slacrawl:", shell_output("#{bin}/slacrawl --help")
   end
 end
