@@ -1,5 +1,5 @@
 name: Update Formula
-run-name: Update ${{ inputs.formula }} for ${{ inputs.tag }}${{ inputs.request_id && format(' ({0})', inputs.request_id) || '' }}
+run-name: Update ${{ inputs.formula }} for ${{ inputs.tag }}${{ inputs.source_tag_object && format(' (request-id={0}; source-tag-object={1}; source-tag-commit={2})', inputs.request_id, inputs.source_tag_object, inputs.source_tag_commit) || (inputs.request_id && format(' ({0})', inputs.request_id) || '') }}
 
 on:
   workflow_dispatch:
@@ -40,6 +40,31 @@ on:
         description: "Comma-separated canonical=artifact-target aliases for custom asset names"
         required: false
         type: string
+      # verified-hashes-v1
+      darwin_amd64_sha256:
+        description: "Caller-verified Darwin amd64 archive SHA-256"
+        required: false
+        type: string
+      darwin_arm64_sha256:
+        description: "Caller-verified Darwin arm64 archive SHA-256"
+        required: false
+        type: string
+      linux_amd64_sha256:
+        description: "Caller-verified Linux amd64 archive SHA-256"
+        required: false
+        type: string
+      linux_arm64_sha256:
+        description: "Caller-verified Linux arm64 archive SHA-256"
+        required: false
+        type: string
+      source_tag_commit:
+        description: "Peeled commit of the caller-verified annotated source tag"
+        required: false
+        type: string
+      source_tag_object:
+        description: "Object ID of the caller-verified annotated source tag"
+        required: false
+        type: string
       cask:
         description: "Optional cask name to update with the same release"
         required: false
@@ -58,13 +83,23 @@ permissions:
 
 jobs:
   update-formula:
+    if: >-
+      github.ref_protected == true &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      endsWith(github.workflow_ref, format('@refs/heads/{0}', github.event.repository.default_branch))
     runs-on: macos-15
     steps:
       - name: Checkout tap repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
 
       - name: Setup Git
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
+          git checkout -B "$DEFAULT_BRANCH" "$GITHUB_SHA"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
@@ -74,11 +109,18 @@ jobs:
           ARTIFACT_URL: ${{ inputs.artifact_url }}
           CASK: ${{ inputs.cask }}
           CASK_ARTIFACT: ${{ inputs.cask_artifact }}
+          DARWIN_AMD64_SHA256: ${{ inputs.darwin_amd64_sha256 }}
+          DARWIN_ARM64_SHA256: ${{ inputs.darwin_arm64_sha256 }}
           DESCRIPTION: ${{ inputs.description }}
           FORMULA: ${{ inputs.formula }}
+          LINUX_AMD64_SHA256: ${{ inputs.linux_amd64_sha256 }}
+          LINUX_ARM64_SHA256: ${{ inputs.linux_arm64_sha256 }}
           LINUX_URL: ${{ inputs.linux_url }}
           MACOS_ARTIFACT: ${{ inputs.macos_artifact }}
           REPOSITORY: ${{ inputs.repository }}
+          REQUEST_ID: ${{ inputs.request_id }}
+          SOURCE_TAG_COMMIT: ${{ inputs.source_tag_commit }}
+          SOURCE_TAG_OBJECT: ${{ inputs.source_tag_object }}
           TAG: ${{ inputs.tag }}
           TARGET_ALIASES: ${{ inputs.target_aliases }}
         run: |
@@ -112,6 +154,34 @@ jobs:
             args+=(--target-aliases "$TARGET_ALIASES")
           fi
 
+          if [ -n "$DARWIN_AMD64_SHA256" ]; then
+            args+=(--darwin-amd64-sha256 "$DARWIN_AMD64_SHA256")
+          fi
+
+          if [ -n "$DARWIN_ARM64_SHA256" ]; then
+            args+=(--darwin-arm64-sha256 "$DARWIN_ARM64_SHA256")
+          fi
+
+          if [ -n "$LINUX_AMD64_SHA256" ]; then
+            args+=(--linux-amd64-sha256 "$LINUX_AMD64_SHA256")
+          fi
+
+          if [ -n "$LINUX_ARM64_SHA256" ]; then
+            args+=(--linux-arm64-sha256 "$LINUX_ARM64_SHA256")
+          fi
+
+          if [ -n "$SOURCE_TAG_COMMIT" ]; then
+            args+=(--source-tag-commit "$SOURCE_TAG_COMMIT")
+          fi
+
+          if [ -n "$SOURCE_TAG_OBJECT" ]; then
+            args+=(--source-tag-object "$SOURCE_TAG_OBJECT")
+          fi
+
+          if [ -n "$REQUEST_ID" ]; then
+            args+=(--request-id "$REQUEST_ID")
+          fi
+
           if [ -n "$CASK" ]; then
             args+=(--cask "$CASK")
           fi
@@ -130,10 +200,50 @@ jobs:
           done
           brew style Formula/*.rb
 
+      - name: Revalidate verified source tag
+        if: ${{ inputs.source_tag_object != '' }}
+        env:
+          ARTIFACT_TEMPLATE: ${{ inputs.artifact_template }}
+          DARWIN_AMD64_SHA256: ${{ inputs.darwin_amd64_sha256 }}
+          DARWIN_ARM64_SHA256: ${{ inputs.darwin_arm64_sha256 }}
+          FORMULA: ${{ inputs.formula }}
+          LINUX_AMD64_SHA256: ${{ inputs.linux_amd64_sha256 }}
+          LINUX_ARM64_SHA256: ${{ inputs.linux_arm64_sha256 }}
+          REPOSITORY: ${{ inputs.repository }}
+          REQUEST_ID: ${{ inputs.request_id }}
+          SOURCE_TAG_COMMIT: ${{ inputs.source_tag_commit }}
+          SOURCE_TAG_OBJECT: ${{ inputs.source_tag_object }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          python3 .github/scripts/update_formula.py \
+            --formula "$FORMULA" \
+            --tag "$TAG" \
+            --repository "$REPOSITORY" \
+            --artifact-template "$ARTIFACT_TEMPLATE" \
+            --darwin-amd64-sha256 "$DARWIN_AMD64_SHA256" \
+            --darwin-arm64-sha256 "$DARWIN_ARM64_SHA256" \
+            --linux-amd64-sha256 "$LINUX_AMD64_SHA256" \
+            --linux-arm64-sha256 "$LINUX_ARM64_SHA256" \
+            --source-tag-commit "$SOURCE_TAG_COMMIT" \
+            --source-tag-object "$SOURCE_TAG_OBJECT" \
+            --request-id "$REQUEST_ID" \
+            --verify-source-tag-only
+
       - name: Commit and push
         env:
+          ARTIFACT_TEMPLATE: ${{ inputs.artifact_template }}
           CASK: ${{ inputs.cask }}
+          DARWIN_AMD64_SHA256: ${{ inputs.darwin_amd64_sha256 }}
+          DARWIN_ARM64_SHA256: ${{ inputs.darwin_arm64_sha256 }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           FORMULA: ${{ inputs.formula }}
+          GH_TOKEN: ${{ github.token }}
+          LINUX_AMD64_SHA256: ${{ inputs.linux_amd64_sha256 }}
+          LINUX_ARM64_SHA256: ${{ inputs.linux_arm64_sha256 }}
+          REPOSITORY: ${{ inputs.repository }}
+          REQUEST_ID: ${{ inputs.request_id }}
+          SOURCE_TAG_COMMIT: ${{ inputs.source_tag_commit }}
+          SOURCE_TAG_OBJECT: ${{ inputs.source_tag_object }}
           TAG: ${{ inputs.tag }}
         run: |
           git add "Formula/${FORMULA}.rb"
@@ -142,18 +252,70 @@ jobs:
           fi
 
           if git diff --cached --quiet; then
+            if [ -n "$SOURCE_TAG_OBJECT" ]; then
+              echo "verified-hash update produced no formula change; refusing to succeed without a direct-child provenance commit" >&2
+              exit 1
+            fi
             echo "Formula/${FORMULA}.rb${CASK:+ and Casks/${CASK}.rb} already up to date"
             exit 0
           fi
 
           if [ -n "$CASK" ]; then
-            git commit -m "${FORMULA}: update formula and cask for ${TAG}"
+            subject="${FORMULA}: update formula and cask for ${TAG}"
           else
-            git commit -m "${FORMULA}: update formula for ${TAG}"
+            subject="${FORMULA}: update formula for ${TAG}"
           fi
 
+          if [ -n "$SOURCE_TAG_OBJECT" ]; then
+            provenance=$(printf '%s\n' \
+              "Source-Repository: ${REPOSITORY}" \
+              "Source-Tag-Object: ${SOURCE_TAG_OBJECT}" \
+              "Source-Tag-Commit: ${SOURCE_TAG_COMMIT}" \
+              "Request-ID: ${REQUEST_ID}")
+            git commit -m "$subject" -m "$provenance"
+
+            revalidate_verified_source_tag() {
+              (
+                unset GH_TOKEN
+                python3 .github/scripts/update_formula.py \
+                  --formula "$FORMULA" \
+                  --tag "$TAG" \
+                  --repository "$REPOSITORY" \
+                  --artifact-template "$ARTIFACT_TEMPLATE" \
+                  --darwin-amd64-sha256 "$DARWIN_AMD64_SHA256" \
+                  --darwin-arm64-sha256 "$DARWIN_ARM64_SHA256" \
+                  --linux-amd64-sha256 "$LINUX_AMD64_SHA256" \
+                  --linux-arm64-sha256 "$LINUX_ARM64_SHA256" \
+                  --source-tag-commit "$SOURCE_TAG_COMMIT" \
+                  --source-tag-object "$SOURCE_TAG_OBJECT" \
+                  --request-id "$REQUEST_ID" \
+                  --verify-source-tag-only
+              )
+            }
+
+            revalidate_verified_source_tag
+            remote_head=$(git ls-remote --heads origin "refs/heads/${DEFAULT_BRANCH}" | awk 'NR == 1 { print $1 }')
+            if [ "$remote_head" != "$GITHUB_SHA" ]; then
+              echo "default branch advanced during verified-hash update; redispatch from the new protected head" >&2
+              exit 1
+            fi
+            gh auth setup-git
+            git push origin "HEAD:refs/heads/${DEFAULT_BRANCH}"
+            local_head=$(git rev-parse HEAD)
+            remote_head=$(git ls-remote --heads origin "refs/heads/${DEFAULT_BRANCH}" | awk 'NR == 1 { print $1 }')
+            if [ "$remote_head" != "$local_head" ]; then
+              echo "verified-hash push did not leave the default branch at the exact local commit" >&2
+              exit 1
+            fi
+            revalidate_verified_source_tag
+            exit 0
+          fi
+
+          git commit -m "$subject"
+          gh auth setup-git
+
           for attempt in 1 2 3; do
-            if git push; then
+            if git push origin "HEAD:refs/heads/${DEFAULT_BRANCH}"; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
@@ -161,7 +323,7 @@ jobs:
               exit 1
             fi
 
-            git pull --rebase origin main
+            git pull --rebase origin "$DEFAULT_BRANCH"
             python3 -m unittest discover -s tests -v
             for formula in Formula/*.rb; do
               ruby -c "$formula"

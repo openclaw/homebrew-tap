@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import pathlib
+import tempfile
 import unittest
+from unittest import mock
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -58,6 +61,321 @@ class UpdateFormulaTest(unittest.TestCase):
                 update_formula.validate_url(value, "URL")
         with self.assertRaises(SystemExit):
             update_formula.parse_target_aliases("unknown=linux-amd64")
+        with self.assertRaises(SystemExit):
+            update_formula.parse_target_aliases("darwin_arm64=shared,darwin_amd64=shared")
+
+    def test_verified_hash_contract_is_atomic_and_strict(self) -> None:
+        hashes = {
+            "darwin_amd64": "1" * 64,
+            "darwin_arm64": "2" * 64,
+            "linux_amd64": "3" * 64,
+            "linux_arm64": "4" * 64,
+        }
+        self.assertEqual(
+            update_formula.validate_verified_hash_contract(
+                hashes,
+                "a" * 40,
+                "b" * 40,
+                "example-v1.2.3-123",
+            ),
+            hashes,
+        )
+        self.assertIsNone(
+            update_formula.validate_verified_hash_contract(
+                {target: None for target in update_formula.RELEASE_TARGETS},
+                None,
+                None,
+                "legacy-request-id",
+            )
+        )
+
+        incomplete = dict(hashes)
+        incomplete["linux_arm64"] = None
+        with self.assertRaisesRegex(SystemExit, "missing linux_arm64_sha256"):
+            update_formula.validate_verified_hash_contract(
+                incomplete,
+                "a" * 40,
+                "b" * 40,
+                "example-v1.2.3-123",
+            )
+        with self.assertRaisesRegex(SystemExit, "64 lowercase"):
+            update_formula.validate_verified_hash_contract(
+                {**hashes, "linux_arm64": "A" * 64},
+                "a" * 40,
+                "b" * 40,
+                "example-v1.2.3-123",
+            )
+        with self.assertRaisesRegex(SystemExit, "annotated tag"):
+            update_formula.validate_verified_hash_contract(
+                hashes,
+                "a" * 40,
+                "a" * 40,
+                "example-v1.2.3-123",
+            )
+
+    def test_validates_exact_annotated_source_tag_refs(self) -> None:
+        tag = "v1.2.3"
+        tag_object = "b" * 40
+        tag_commit = "a" * 40
+        output = f"{tag_object}\trefs/tags/{tag}\n{tag_commit}\trefs/tags/{tag}^{{}}\n"
+
+        update_formula.validate_source_tag_refs(
+            output,
+            tag,
+            tag_object,
+            tag_commit,
+        )
+        with self.assertRaisesRegex(SystemExit, "does not match"):
+            update_formula.validate_source_tag_refs(
+                f"{tag_object}\trefs/tags/{tag}\n{'c' * 40}\trefs/tags/{tag}^{{}}\n",
+                tag,
+                tag_object,
+                tag_commit,
+            )
+        with self.assertRaisesRegex(SystemExit, "invalid or duplicate"):
+            update_formula.validate_source_tag_refs(
+                output + f"{tag_object}\trefs/tags/{tag}\n",
+                tag,
+                tag_object,
+                tag_commit,
+            )
+
+    def test_remote_source_tag_lookup_uses_exact_public_refs_without_credentials(self) -> None:
+        tag = "v1.2.3"
+        tag_object = "b" * 40
+        tag_commit = "a" * 40
+        output = f"{tag_object}\trefs/tags/{tag}\n{tag_commit}\trefs/tags/{tag}^{{}}\n"
+
+        def git_result(command: list[str], **_: object) -> update_formula.subprocess.CompletedProcess[str]:
+            stdout = ""
+            if command[-1] == f"refs/tags/{tag}^{{tag}}":
+                stdout = tag_object + "\n"
+            elif command[-1] == f"refs/tags/{tag}^{{commit}}":
+                stdout = tag_commit + "\n"
+            elif "ls-remote" in command:
+                stdout = output
+            return update_formula.subprocess.CompletedProcess(command, 0, stdout, "")
+
+        with mock.patch.object(update_formula.subprocess, "run", side_effect=git_result) as run:
+            update_formula.verify_remote_source_tag(
+                "openclaw/example",
+                tag,
+                tag_object,
+                tag_commit,
+            )
+
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertEqual(
+            commands[-1],
+            [
+                "git",
+                "ls-remote",
+                "--tags",
+                "https://github.com/openclaw/example.git",
+                f"refs/tags/{tag}",
+                f"refs/tags/{tag}^{{}}",
+            ],
+        )
+        fetch = next(command for command in commands if "fetch" in command)
+        self.assertEqual(
+            fetch[-2:],
+            [
+                "https://github.com/openclaw/example.git",
+                f"refs/tags/{tag}:refs/tags/{tag}",
+            ],
+        )
+        self.assertTrue(any(command[-1] == f"refs/tags/{tag}^{{tag}}" for command in commands))
+        self.assertTrue(any(command[-1] == f"refs/tags/{tag}^{{commit}}" for command in commands))
+        for call in run.call_args_list:
+            options = call.kwargs
+            self.assertEqual(options["cwd"], "/")
+            self.assertEqual(options["env"]["GIT_CONFIG_GLOBAL"], "/dev/null")
+            self.assertEqual(options["env"]["GIT_TERMINAL_PROMPT"], "0")
+            self.assertNotIn("GH_TOKEN", options["env"])
+            self.assertNotIn("GITHUB_TOKEN", options["env"])
+
+    def test_remote_source_tag_rejects_a_non_commit_target(self) -> None:
+        tag = "v1.2.3"
+        tag_object = "b" * 40
+        tag_commit = "a" * 40
+
+        def git_result(command: list[str], **_: object) -> update_formula.subprocess.CompletedProcess[str]:
+            if command[-1] == f"refs/tags/{tag}^{{tag}}":
+                return update_formula.subprocess.CompletedProcess(command, 0, tag_object + "\n", "")
+            if command[-1] == f"refs/tags/{tag}^{{commit}}":
+                return update_formula.subprocess.CompletedProcess(command, 128, "", "expected commit type")
+            return update_formula.subprocess.CompletedProcess(command, 0, "", "")
+
+        with mock.patch.object(update_formula.subprocess, "run", side_effect=git_result):
+            with self.assertRaisesRegex(SystemExit, "does not peel to a commit"):
+                update_formula.verify_remote_source_tag(
+                    "openclaw/example",
+                    tag,
+                    tag_object,
+                    tag_commit,
+                )
+
+    def test_verified_hash_mode_renders_canonical_targets_without_downloading_assets(self) -> None:
+        formula = '''class Example < Formula
+  desc "Example CLI"
+  homepage "https://github.com/openclaw/example"
+  version "1.2.2"
+  license "MIT"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/openclaw/example/releases/download/v1.2.2/example_1.2.2_darwin_amd64.tar.gz"
+      sha256 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    else
+      url "https://github.com/openclaw/example/releases/download/v1.2.2/example_1.2.2_darwin_arm64.tar.gz"
+      sha256 "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    end
+  end
+
+  on_linux do
+    if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
+      url "https://github.com/openclaw/example/releases/download/v1.2.2/example_1.2.2_linux_arm64.tar.gz"
+      sha256 "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    end
+
+    if Hardware::CPU.intel? && Hardware::CPU.is_64_bit?
+      url "https://github.com/openclaw/example/releases/download/v1.2.2/example_1.2.2_linux_amd64.tar.gz"
+      sha256 "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    end
+  end
+
+  def install
+    bin.install "example"
+  end
+
+  test do
+    assert_match version.to_s, shell_output("#{bin}/example --version")
+  end
+end
+'''
+        hashes = {
+            "darwin_amd64": "1" * 64,
+            "darwin_arm64": "2" * 64,
+            "linux_amd64": "3" * 64,
+            "linux_arm64": "4" * 64,
+        }
+        arguments = [
+            "--formula",
+            "example",
+            "--tag",
+            "v1.2.3",
+            "--repository",
+            "openclaw/example",
+            "--artifact-template",
+            "{formula}_{version}_{target}.tar.gz",
+            "--darwin-amd64-sha256",
+            hashes["darwin_amd64"],
+            "--darwin-arm64-sha256",
+            hashes["darwin_arm64"],
+            "--linux-amd64-sha256",
+            hashes["linux_amd64"],
+            "--linux-arm64-sha256",
+            hashes["linux_arm64"],
+            "--source-tag-commit",
+            "a" * 40,
+            "--source-tag-object",
+            "b" * 40,
+            "--request-id",
+            "example-v1.2.3-123",
+        ]
+
+        previous_directory = pathlib.Path.cwd()
+        with self.subTest("verified rendering"), mock.patch.object(
+            update_formula, "verify_remote_source_tag"
+        ) as verify_tag, mock.patch.object(
+            update_formula, "sha256", side_effect=AssertionError("asset download attempted")
+        ) as download:
+            with tempfile.TemporaryDirectory() as directory:
+                root = pathlib.Path(directory)
+                (root / "Formula").mkdir()
+                path = root / "Formula" / "example.rb"
+                path.write_text(formula)
+                os.chdir(root)
+                try:
+                    self.assertEqual(update_formula.main(arguments), 0)
+                finally:
+                    os.chdir(previous_directory)
+                updated = path.read_text()
+
+        verify_tag.assert_called_once_with("openclaw/example", "v1.2.3", "b" * 40, "a" * 40)
+        download.assert_not_called()
+        self.assertEqual(updated.count('  version "1.2.3"'), 1)
+        self.assertIn("if Hardware::CPU.arm?", updated)
+        self.assertIn("if Hardware::CPU.intel?", updated)
+        self.assertIn("Hardware::CPU.arm? && Hardware::CPU.is_64_bit?", updated)
+        self.assertIn("Hardware::CPU.intel? && Hardware::CPU.is_64_bit?", updated)
+        for target, digest in hashes.items():
+            self.assertIn(
+                f'url "https://github.com/openclaw/example/releases/download/v#{{version}}/'
+                f'example_#{{version}}_{target}.tar.gz"\n      sha256 "{digest}"',
+                updated,
+            )
+            self.assertEqual(updated.count(digest), 1)
+
+    def test_verified_hash_mode_preserves_formula_specific_install_blocks(self) -> None:
+        formula = (ROOT / "Formula" / "crabbox.rb").read_text()
+        hashes = {
+            "darwin_amd64": "1" * 64,
+            "darwin_arm64": "2" * 64,
+            "linux_amd64": "3" * 64,
+            "linux_arm64": "4" * 64,
+        }
+
+        updated = update_formula.render_verified_target_formula(
+            formula,
+            "openclaw/crabbox",
+            "v0.36.1",
+            "crabbox",
+            "0.36.1",
+            "{formula}_{version}_{target}.tar.gz",
+            {},
+            hashes,
+        )
+
+        self.assertEqual(updated.count("define_method(:install) do"), 4)
+        self.assertEqual(updated.count('bin.install "crabbox"'), 4)
+        self.assertEqual(updated.count('bin.install "crabbox-apple-vm-helper"'), 4)
+        for target, digest in hashes.items():
+            self.assertIn(f"crabbox_#{{version}}_{target}.tar.gz", updated)
+            self.assertEqual(updated.count(digest), 1)
+
+    def test_verified_hash_mode_preserves_formula_metadata_order(self) -> None:
+        formula = (ROOT / "Formula" / "wacli.rb").read_text()
+        hashes = {
+            "darwin_amd64": "1" * 64,
+            "darwin_arm64": "2" * 64,
+            "linux_amd64": "3" * 64,
+            "linux_arm64": "4" * 64,
+        }
+
+        updated = update_formula.render_verified_target_formula(
+            formula,
+            "openclaw/wacli",
+            "v0.12.1",
+            "wacli",
+            "0.12.1",
+            "{formula}_{version}_{target}.tar.gz",
+            {},
+            hashes,
+        )
+
+        metadata = (
+            'license "MIT"',
+            "version_scheme 1",
+            'head "https://github.com/openclaw/wacli.git", branch: "main"',
+            'depends_on "go" => :build if build.head?',
+            "on_macos do",
+        )
+        self.assertEqual([updated.index(item) for item in metadata], sorted(updated.index(item) for item in metadata))
+        self.assertEqual(updated.count("def install"), 1)
+        for target, digest in hashes.items():
+            self.assertIn(f"wacli_#{{version}}_{target}.tar.gz", updated)
+            self.assertEqual(updated.count(digest), 1)
 
     def test_seed_formula_escapes_ruby_description(self) -> None:
         seeded = update_formula.seed_formula(

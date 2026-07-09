@@ -11,10 +11,13 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import pathlib
 import re
 import string
+import subprocess
 import sys
+import tempfile
 import urllib.parse
 import urllib.request
 
@@ -24,6 +27,9 @@ TAP_TOKEN_PATTERN = re.compile(r"[a-z0-9][a-z0-9+@._-]*")
 REPOSITORY_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9][A-Za-z0-9_.-]*")
 RELEASE_TAG_PATTERN = re.compile(r"v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?")
 ARTIFACT_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9+@._-]*")
+SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
+GIT_OBJECT_PATTERN = re.compile(r"[0-9a-f]{40}")
+REQUEST_ID_PATTERN = re.compile(r"[A-Za-z0-9][-A-Za-z0-9._:]{0,127}")
 RELEASE_TARGETS = ("darwin_amd64", "darwin_arm64", "linux_amd64", "linux_arm64")
 CANONICAL_TARGETS = frozenset(("darwin_universal", *RELEASE_TARGETS))
 TEMPLATE_FIELDS = frozenset(("formula", "version", "tag", "target"))
@@ -67,6 +73,26 @@ def validate_artifact_token(value: str, description: str) -> str:
     return value
 
 
+def validate_sha256(value: str, description: str) -> str:
+    if not SHA256_PATTERN.fullmatch(value):
+        raise SystemExit(f"invalid {description}; expected 64 lowercase hexadecimal characters")
+    return value
+
+
+def validate_git_object(value: str, description: str) -> str:
+    if not GIT_OBJECT_PATTERN.fullmatch(value):
+        raise SystemExit(f"invalid {description}; expected a 40-character lowercase Git object ID")
+    return value
+
+
+def validate_request_id(value: str) -> str:
+    if not REQUEST_ID_PATTERN.fullmatch(value):
+        raise SystemExit(
+            "invalid request ID; expected 1-128 ASCII letters, digits, hyphens, dots, underscores, or colons"
+        )
+    return value
+
+
 def validate_url(value: str, description: str) -> str:
     if any(character.isspace() or ord(character) < 32 for character in value):
         raise SystemExit(f"invalid {description}; whitespace and control characters are not allowed")
@@ -107,6 +133,125 @@ def sha256(url: str) -> str:
     return digest.hexdigest()
 
 
+def validate_verified_hash_contract(
+    hashes: dict[str, str | None],
+    source_tag_commit: str | None,
+    source_tag_object: str | None,
+    request_id: str | None,
+) -> dict[str, str] | None:
+    supplied = (*hashes.values(), source_tag_commit, source_tag_object)
+    if not any(supplied):
+        return None
+
+    missing = [target + "_sha256" for target in RELEASE_TARGETS if not hashes.get(target)]
+    if not source_tag_commit:
+        missing.append("source_tag_commit")
+    if not source_tag_object:
+        missing.append("source_tag_object")
+    if not request_id:
+        missing.append("request_id")
+    if missing:
+        raise SystemExit("verified-hash mode requires all inputs; missing " + ", ".join(missing))
+
+    validated = {
+        target: validate_sha256(hashes[target] or "", target + " SHA-256")
+        for target in RELEASE_TARGETS
+    }
+    commit = validate_git_object(source_tag_commit, "source tag commit")
+    tag_object = validate_git_object(source_tag_object, "source tag object")
+    validate_request_id(request_id)
+    if commit == tag_object:
+        raise SystemExit("source tag object must identify an annotated tag, not the peeled commit")
+    return validated
+
+
+def validate_source_tag_refs(
+    output: str,
+    tag: str,
+    source_tag_object: str,
+    source_tag_commit: str,
+) -> None:
+    expected_ref = f"refs/tags/{tag}"
+    expected_peeled_ref = f"{expected_ref}^{{}}"
+    refs: dict[str, str] = {}
+    for line in output.splitlines():
+        fields = line.split("\t")
+        if len(fields) != 2 or fields[1] in refs:
+            raise SystemExit("source tag lookup returned an invalid or duplicate ref")
+        refs[fields[1]] = fields[0]
+    if refs != {
+        expected_ref: source_tag_object,
+        expected_peeled_ref: source_tag_commit,
+    }:
+        raise SystemExit("live source tag does not match the supplied annotated tag object and peeled commit")
+
+
+def verify_remote_source_tag(
+    repository: str,
+    tag: str,
+    source_tag_object: str,
+    source_tag_commit: str,
+) -> None:
+    source_url = f"https://github.com/{repository}.git"
+    ref = f"refs/tags/{tag}"
+    environment = {
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_TERMINAL_PROMPT": "0",
+        "HOME": "/",
+        "LC_ALL": "C",
+        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+    }
+
+    def git(command: list[str], failure: str) -> str:
+        completed = subprocess.run(
+            command,
+            cwd="/",
+            env=environment,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if completed.returncode != 0:
+            detail = completed.stderr.strip() or failure
+            raise SystemExit(f"{failure}: {detail}")
+        return completed.stdout.strip()
+
+    with tempfile.TemporaryDirectory(prefix="tap-source-tag-") as directory:
+        git(["git", "init", "--bare", "--quiet", directory], "failed to initialize source tag check")
+        git(
+            [
+                "git",
+                "-C",
+                directory,
+                "fetch",
+                "--quiet",
+                "--no-tags",
+                "--depth=1",
+                source_url,
+                f"{ref}:{ref}",
+            ],
+            "failed to fetch live source tag",
+        )
+        fetched_tag_object = git(
+            ["git", "-C", directory, "rev-parse", "--verify", f"{ref}^{{tag}}"],
+            "live source ref is not an annotated tag",
+        )
+        fetched_tag_commit = git(
+            ["git", "-C", directory, "rev-parse", "--verify", f"{ref}^{{commit}}"],
+            "live source tag does not peel to a commit",
+        )
+
+    if fetched_tag_object != source_tag_object or fetched_tag_commit != source_tag_commit:
+        raise SystemExit("fetched source tag does not match the supplied annotated tag object and commit")
+
+    output = git(
+        ["git", "ls-remote", "--tags", source_url, ref, f"{ref}^{{}}"],
+        "failed to read live source tag",
+    )
+    validate_source_tag_refs(output, tag, source_tag_object, source_tag_commit)
+
+
 def replace_once(text: str, pattern: str, replacement: str, description: str) -> str:
     matches = re.findall(pattern, text, flags=re.MULTILINE | re.DOTALL)
     if len(matches) != 1:
@@ -135,6 +280,12 @@ def format_template(value: str, formula: str, version: str, tag: str, target: st
     return value.format(**replacements)
 
 
+def require_template_field(value: str, field: str, description: str) -> None:
+    occurrences = sum(1 for _, name, _, _ in string.Formatter().parse(value) if name == field)
+    if occurrences != 1:
+        raise SystemExit(f"{description} must contain exactly one {{{field}}} placeholder")
+
+
 def parse_target_aliases(value: str | None) -> dict[str, str]:
     if not value:
         return {}
@@ -153,6 +304,9 @@ def parse_target_aliases(value: str | None) -> dict[str, str]:
         if canonical in aliases:
             raise SystemExit(f"duplicate canonical target {canonical!r}")
         aliases[canonical] = validate_artifact_token(artifact_target, f"alias for {canonical}")
+    resolved_targets = [aliases.get(target, target) for target in RELEASE_TARGETS]
+    if len(set(resolved_targets)) != len(resolved_targets):
+        raise SystemExit("target aliases must resolve the four release targets to distinct artifact names")
     return aliases
 
 
@@ -185,7 +339,7 @@ def classify_target(url: str, aliases: dict[str, str], version: str) -> str | No
 def iter_url_sha_pairs(text: str) -> list[re.Match[str]]:
     return list(
         re.finditer(
-            r'(?P<prefix>url ")(?P<url>[^"]+)(?P<middle>"\n\s+sha256 ")[0-9a-f]+(?P<suffix>")',
+            r'(?P<prefix>url ")(?P<url>[^"]+)(?P<middle>"\n\s+sha256 ")(?P<sha>[0-9a-f]+)(?P<suffix>")',
             text,
             flags=re.MULTILINE,
         )
@@ -371,6 +525,111 @@ def target_url(
     return f"https://github.com/{repository}/releases/download/{tag}/{artifact}"
 
 
+def interpolated_target_url(
+    repository: str,
+    tag: str,
+    formula: str,
+    version: str,
+    template: str,
+    target_aliases: dict[str, str],
+    target: str,
+) -> str:
+    artifact_target = target_aliases.get(target, target)
+    interpolated_version = "#{version}"
+    interpolated_tag = f"v{interpolated_version}" if tag == f"v{version}" else interpolated_version
+    artifact = template.format(
+        formula=formula,
+        version=interpolated_version,
+        tag=interpolated_tag,
+        target=artifact_target,
+    )
+    return f"https://github.com/{repository}/releases/download/{interpolated_tag}/{artifact}"
+
+
+def predicate_architecture(line: str) -> str | None:
+    match = re.fullmatch(
+        r"    (?:if|elsif) Hardware::CPU\.(arm|intel)\?(?: && Hardware::CPU\.is_64_bit\?)?\n?",
+        line,
+    )
+    if match:
+        return "arm64" if match.group(1) == "arm" else "amd64"
+    match = re.fullmatch(r"    on_(arm|intel) do\n?", line)
+    if match:
+        return "arm64" if match.group(1) == "arm" else "amd64"
+    return None
+
+
+def update_verified_stanza(
+    text: str,
+    stanza: str,
+    repository: str,
+    tag: str,
+    formula: str,
+    version: str,
+    template: str,
+    target_aliases: dict[str, str],
+    hashes: dict[str, str],
+) -> str:
+    matches = list(re.finditer(rf"^  {stanza} do$", text, flags=re.MULTILINE))
+    match = stanza_match(text, stanza)
+    if len(matches) != 1 or match is None:
+        raise SystemExit(f"verified-hash mode requires exactly one {stanza} stanza")
+
+    prefix = "darwin" if stanza == "on_macos" else "linux"
+    lines = match.group("body").splitlines(keepends=True)
+    current_architecture: str | None = None
+    conditional_architecture: str | None = None
+    seen_targets: set[str] = set()
+    index = 0
+    while index < len(lines):
+        architecture = predicate_architecture(lines[index])
+        if architecture:
+            current_architecture = architecture
+            conditional_architecture = architecture
+            index += 1
+            continue
+        if re.fullmatch(r"    else\n?", lines[index]):
+            if conditional_architecture is None:
+                raise SystemExit(f"verified-hash mode found an unmatched else in {stanza}")
+            current_architecture = "amd64" if conditional_architecture == "arm64" else "arm64"
+            index += 1
+            continue
+        if re.fullmatch(r"    end\n?", lines[index]):
+            current_architecture = None
+            conditional_architecture = None
+            index += 1
+            continue
+
+        url_match = re.fullmatch(r'(\s+)url "[^"]+"\n?', lines[index])
+        if not url_match:
+            index += 1
+            continue
+        if current_architecture is None or index + 1 >= len(lines):
+            raise SystemExit(f"verified-hash mode could not bind a {stanza} URL to an architecture predicate")
+        sha_match = re.fullmatch(r'(\s+)sha256 "[0-9a-f]+"\n?', lines[index + 1])
+        if not sha_match or sha_match.group(1) != url_match.group(1):
+            raise SystemExit(f"verified-hash mode requires adjacent URL/checksum pairs in {stanza}")
+
+        target = f"{prefix}_{current_architecture}"
+        if target in seen_targets:
+            raise SystemExit(f"verified-hash mode found duplicate {target} URL/checksum pairs")
+        newline = "\n" if lines[index].endswith("\n") else ""
+        indentation = url_match.group(1)
+        url = interpolated_target_url(
+            repository, tag, formula, version, template, target_aliases, target
+        )
+        lines[index] = f'{indentation}url "{url}"{newline}'
+        lines[index + 1] = f'{indentation}sha256 "{hashes[target]}"{newline}'
+        seen_targets.add(target)
+        index += 2
+
+    expected_targets = {f"{prefix}_arm64", f"{prefix}_amd64"}
+    if seen_targets != expected_targets:
+        raise SystemExit(f"verified-hash mode requires exact arm64 and amd64 pairs in {stanza}")
+    body = "".join(lines)
+    return text[: match.start("body")] + body + text[match.end("body") :]
+
+
 def target_stanza(
     stanza: str,
     first_target: str,
@@ -509,6 +768,61 @@ def insert_target_stanzas(
     return text[: match.end()] + stanzas + text[match.end() :]
 
 
+def render_verified_target_formula(
+    text: str,
+    repository: str,
+    tag: str,
+    formula: str,
+    version: str,
+    template: str,
+    target_aliases: dict[str, str],
+    hashes: dict[str, str],
+) -> str:
+    text = update_repository_metadata(text, repository)
+    text = update_version(text, version)
+    text = update_verified_stanza(
+        text,
+        "on_macos",
+        repository,
+        tag,
+        formula,
+        version,
+        template,
+        target_aliases,
+        hashes,
+    )
+    text = update_verified_stanza(
+        text,
+        "on_linux",
+        repository,
+        tag,
+        formula,
+        version,
+        template,
+        target_aliases,
+        hashes,
+    )
+
+    version_lines = re.findall(r'^\s*version\s+"[^"]+"$', text, flags=re.MULTILINE)
+    if version_lines != [f'  version "{version}"']:
+        raise SystemExit("verified-hash mode requires exactly one canonical formula version line")
+
+    actual_pairs = [
+        (match.group("url").replace("#{version}", version), match.group("sha"))
+        for match in iter_url_sha_pairs(text)
+    ]
+    expected_pairs = [
+        (
+            target_url(repository, tag, formula, version, template, target_aliases, target),
+            hashes[target],
+        )
+        for target in RELEASE_TARGETS
+    ]
+    if sorted(actual_pairs) != sorted(expected_pairs):
+        raise SystemExit("verified-hash rendering did not produce the exact canonical target URL/checksum inventory")
+    return text
+
+
 def update_top_level_url_and_sha(text: str, url: str, digest: str, version: str) -> str:
     text = replace_url_preserving_interpolation(
         text,
@@ -568,7 +882,7 @@ def update_repository_metadata(text: str, repository: str) -> str:
     )
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--formula", required=True, help="Formula name, e.g. wacli")
     parser.add_argument("--tag", required=True, help="Release tag, e.g. v0.7.0")
@@ -607,6 +921,18 @@ def main() -> int:
             "for example darwin_arm64=macos-arm64,linux_amd64=linux-x86_64."
         ),
     )
+    parser.add_argument("--darwin-amd64-sha256", help="Verified Darwin amd64 archive SHA-256")
+    parser.add_argument("--darwin-arm64-sha256", help="Verified Darwin arm64 archive SHA-256")
+    parser.add_argument("--linux-amd64-sha256", help="Verified Linux amd64 archive SHA-256")
+    parser.add_argument("--linux-arm64-sha256", help="Verified Linux arm64 archive SHA-256")
+    parser.add_argument("--source-tag-commit", help="Peeled commit of the verified annotated source tag")
+    parser.add_argument("--source-tag-object", help="Object ID of the verified annotated source tag")
+    parser.add_argument("--request-id", help="Unique caller-generated verified-handoff identifier")
+    parser.add_argument(
+        "--verify-source-tag-only",
+        action="store_true",
+        help="Revalidate verified-hash source provenance without changing a formula",
+    )
     parser.add_argument("--cask", help="Optional cask name to update alongside the formula")
     parser.add_argument(
         "--cask-artifact",
@@ -615,7 +941,7 @@ def main() -> int:
             "required when --cask is set."
         ),
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     args.formula = validate_tap_token(args.formula, "formula")
     args.repository = validate_repository(args.repository)
@@ -633,6 +959,39 @@ def main() -> int:
     if args.cask_artifact:
         validate_template(args.cask_artifact, "cask artifact template", frozenset(("formula", "version", "tag")))
 
+    verified_hashes = validate_verified_hash_contract(
+        {
+            "darwin_amd64": args.darwin_amd64_sha256,
+            "darwin_arm64": args.darwin_arm64_sha256,
+            "linux_amd64": args.linux_amd64_sha256,
+            "linux_arm64": args.linux_arm64_sha256,
+        },
+        args.source_tag_commit,
+        args.source_tag_object,
+        args.request_id,
+    )
+    if verified_hashes is not None:
+        incompatible = [
+            option
+            for option, value in (
+                ("macos_artifact", args.macos_artifact),
+                ("linux_url", args.linux_url),
+                ("artifact_url", args.artifact_url),
+                ("cask", args.cask),
+                ("cask_artifact", args.cask_artifact),
+            )
+            if value
+        ]
+        if incompatible:
+            raise SystemExit(
+                "verified-hash mode does not support these legacy inputs: " + ", ".join(incompatible)
+            )
+        if not args.artifact_template:
+            raise SystemExit("verified-hash mode requires an explicit artifact_template")
+        require_template_field(args.artifact_template, "target", "verified artifact template")
+    elif args.verify_source_tag_only:
+        raise SystemExit("--verify-source-tag-only requires the complete verified-hash input set")
+
     version = args.tag[1:] if args.tag.startswith("v") else args.tag
     if args.cask and not args.cask_artifact:
         raise SystemExit("--cask-artifact is required when --cask is set")
@@ -648,6 +1007,41 @@ def main() -> int:
                 artifact_target,
             )
             validate_artifact_token(artifact, f"artifact for {target}")
+
+    if verified_hashes is not None:
+        assert args.source_tag_object is not None
+        assert args.source_tag_commit is not None
+        assert args.artifact_template is not None
+        verify_remote_source_tag(
+            args.repository,
+            args.tag,
+            args.source_tag_object,
+            args.source_tag_commit,
+        )
+        if args.verify_source_tag_only:
+            print(
+                "verified live source tag "
+                f"{args.repository}@{args.tag} object={args.source_tag_object} commit={args.source_tag_commit}"
+            )
+            return 0
+
+        path = tap_path("Formula", args.formula)
+        if not path.exists():
+            raise SystemExit("verified-hash mode updates existing formulae only")
+        text = render_verified_target_formula(
+            path.read_text(),
+            args.repository,
+            args.tag,
+            args.formula,
+            version,
+            args.artifact_template,
+            target_aliases,
+            verified_hashes,
+        )
+        path.write_text(text)
+        print(f"updated {path} to {version} from caller-verified target hashes")
+        return 0
+
     cask_artifact = None
     if args.cask_artifact:
         cask_artifact = format_template(args.cask_artifact, args.formula, version, args.tag)

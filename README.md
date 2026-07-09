@@ -66,3 +66,22 @@ The `Update Formula` workflow accepts a Homebrew formula token, a semantic relea
 GitHub repository in `owner/repo` form. Optional artifact inputs must resolve to HTTPS release
 assets and may use only the placeholders documented by the workflow. Pull requests and updates
 to `main` run the updater tests and validate every formula's Ruby syntax.
+
+Four-target binary releases can use the workflow's `verified-hashes-v1` contract. Supply all four
+canonical target SHA-256 inputs, `source_tag_object`, `source_tag_commit`, and `request_id` with an
+explicit `{target}` artifact template. This mode requires an existing formula, checks that the live
+source ref is the supplied annotated tag object and peeled commit, renders the target URL/checksum
+pairs directly from the supplied hashes, and never downloads release assets to recompute them.
+Partial or mixed legacy/verified input sets fail closed. The source repository remains responsible
+for verifying the public release bytes immediately before dispatch and again after the tap update,
+including its clean downstream Homebrew install proof.
+
+Each successful verified dispatch must create one direct-child provenance commit; an already-current
+formula fails closed instead of reporting a trailerless no-op. The workflow revalidates the exact
+public source tag without credentials immediately before its one-shot push and again after proving
+that the remote tap branch equals the pushed commit.
+
+Verified run titles are `Update <formula> for <tag> (request-id=<id>;
+source-tag-object=<object>; source-tag-commit=<commit>)`. A changed formula commit records
+`Source-Repository`, `Source-Tag-Object`, `Source-Tag-Commit`, and `Request-ID` trailers so callers
+can bind the protected workflow run, resulting tap commit, and formula bytes to one handoff.
