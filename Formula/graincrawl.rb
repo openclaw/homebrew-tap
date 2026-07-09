@@ -29,6 +29,6 @@ class Graincrawl < Formula
   end
 
   test do
-    assert_match "\"version\"", shell_output("#{bin}/graincrawl version --json")
+    assert_match "\"version\"", shell_output("#{bin}/graincrawl --json version")
   end
 end
