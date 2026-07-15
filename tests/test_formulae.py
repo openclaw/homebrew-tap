@@ -8,6 +8,14 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 class FormulaTest(unittest.TestCase):
+    def test_axorc_installs_trusted_release_binary(self) -> None:
+        text = (ROOT / "Formula" / "axorc.rb").read_text()
+        self.assertIn("/releases/download/", text)
+        self.assertIn('skip_clean "bin/axorc"', text)
+        self.assertIn("anchor apple generic", text)
+        self.assertNotIn("/archive/refs/tags/", text)
+        self.assertNotIn('system "swift"', text)
+
     def test_crawlbar_installs_trusted_release_app(self) -> None:
         text = (ROOT / "Formula" / "crawlbar.rb").read_text()
         self.assertIn("/releases/download/", text)
