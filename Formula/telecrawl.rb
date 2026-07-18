@@ -1,26 +1,26 @@
 class Telecrawl < Formula
   desc "Telegram Desktop archive CLI with encrypted Git backups"
   homepage "https://github.com/openclaw/telecrawl"
-  version "0.3.3"
+  version "0.3.4"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/openclaw/telecrawl/releases/download/v#{version}/telecrawl_#{version}_darwin_arm64.tar.gz"
-      sha256 "d91d1aeb8b6340c201d09112a9ea537d7eb4bcb9250aeaa1ca7ec4180a098c1d"
+      sha256 "2734a2bb41fdafa9631f85b9734b38b5f2332023ad1982cebdbc3663c847592c"
     else
       url "https://github.com/openclaw/telecrawl/releases/download/v#{version}/telecrawl_#{version}_darwin_amd64.tar.gz"
-      sha256 "371f87061150ec81ec5c5375db430266d04598ff4b7c825902810944001651cd"
+      sha256 "d4b5e873e14fa9c573047db85519edc5c440cd4623bac2ceb40130c1779ed69e"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
       url "https://github.com/openclaw/telecrawl/releases/download/v#{version}/telecrawl_#{version}_linux_arm64.tar.gz"
-      sha256 "bd27c16230dabef59819e617ed02ac288a6d440aaf41fd44acbc5295bfbc0629"
+      sha256 "5a85f5e14a7fe30aedbf648106a452fc3cbdf3a7636ef6d2b11939a2e52a6209"
     else
       url "https://github.com/openclaw/telecrawl/releases/download/v#{version}/telecrawl_#{version}_linux_amd64.tar.gz"
-      sha256 "aafd1105426e84f890f0b72bce83debdc38e3ba5f4c127778aba07de6e3a89e1"
+      sha256 "64512f389b49f555539da75ab012e12fb1f1bde55cb4c5101bd7790e4fa3e0d5"
     end
   end
 
