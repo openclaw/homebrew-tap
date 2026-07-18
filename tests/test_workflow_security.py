@@ -76,6 +76,8 @@ class WorkflowSecurityTest(unittest.TestCase):
 
     def test_verified_handoff_has_exact_inputs_run_name_and_commit_trailers(self) -> None:
         text = UPDATE_WORKFLOW.read_text()
+        self.assertRegex(text, r"(?m)^      assets:$")
+        self.assertIn('args+=(--assets-json "$ASSETS_JSON")', text)
         for name in (
             "darwin_amd64_sha256",
             "darwin_arm64_sha256",
@@ -120,6 +122,7 @@ class WorkflowSecurityTest(unittest.TestCase):
                 **os.environ,
                 "ARTIFACT_TEMPLATE": "",
                 "ARTIFACT_URL": "",
+                "ASSETS_JSON": "",
                 "CAPTURED_ARGUMENTS": str(capture),
                 "CASK": "",
                 "CASK_ARTIFACT": "",

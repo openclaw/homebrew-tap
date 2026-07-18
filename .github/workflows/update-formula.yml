@@ -16,6 +16,10 @@ on:
         description: "Source repository (e.g., openclaw/gitcrawl)"
         required: true
         type: string
+      assets:
+        description: "Optional exact four-platform asset name/SHA-256 JSON from a verified release inventory"
+        required: false
+        type: string
       description:
         description: "Formula description used when creating a missing formula"
         required: false
@@ -107,6 +111,7 @@ jobs:
         env:
           ARTIFACT_TEMPLATE: ${{ inputs.artifact_template }}
           ARTIFACT_URL: ${{ inputs.artifact_url }}
+          ASSETS_JSON: ${{ inputs.assets }}
           CASK: ${{ inputs.cask }}
           CASK_ARTIFACT: ${{ inputs.cask_artifact }}
           DARWIN_AMD64_SHA256: ${{ inputs.darwin_amd64_sha256 }}
@@ -129,6 +134,10 @@ jobs:
             --tag "$TAG"
             --repository "$REPOSITORY"
           )
+
+          if [ -n "$ASSETS_JSON" ]; then
+            args+=(--assets-json "$ASSETS_JSON")
+          fi
 
           if [ -n "$DESCRIPTION" ]; then
             args+=(--description "$DESCRIPTION")

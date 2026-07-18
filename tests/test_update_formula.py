@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import pathlib
 import tempfile
@@ -112,6 +113,90 @@ class UpdateFormulaTest(unittest.TestCase):
                 "a" * 40,
                 "example-v1.2.3-123",
             )
+
+    def test_explicit_assets_contract_renders_exact_names_and_rehashes(self) -> None:
+        formula = '''class Example < Formula
+  desc "Example CLI"
+  homepage "https://github.com/openclaw/example"
+  version "1.2.2"
+  license "MIT"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/openclaw/example/releases/download/v1.2.2/old-darwin-arm64.tar.gz"
+      sha256 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    else
+      url "https://github.com/openclaw/example/releases/download/v1.2.2/old-darwin-amd64.tar.gz"
+      sha256 "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    end
+  end
+
+  on_linux do
+    if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
+      url "https://github.com/openclaw/example/releases/download/v1.2.2/old-linux-arm64.tar.gz"
+      sha256 "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    end
+    if Hardware::CPU.intel? && Hardware::CPU.is_64_bit?
+      url "https://github.com/openclaw/example/releases/download/v1.2.2/old-linux-amd64.tar.gz"
+      sha256 "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    end
+  end
+
+  resource "completion" do
+    url "https://example.test/completion.tar.gz"
+    sha256 "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  end
+
+  def install
+    bin.install "example"
+  end
+end
+'''
+        assets = {
+            target: {"name": f"example_1.2.3_custom_{target}_v8.0.tar.gz", "sha256": "e" * 64}
+            for target in update_formula.RELEASE_TARGETS
+        }
+        arguments = [
+            "--formula", "example",
+            "--tag", "v1.2.3",
+            "--repository", "openclaw/example",
+            "--assets-json", json.dumps(assets),
+        ]
+
+        previous_directory = pathlib.Path.cwd()
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "Formula").mkdir()
+            path = root / "Formula" / "example.rb"
+            path.write_text(formula)
+            os.chdir(root)
+            try:
+                with mock.patch.object(update_formula, "sha256", return_value="e" * 64) as download:
+                    self.assertEqual(update_formula.main(arguments), 0)
+            finally:
+                os.chdir(previous_directory)
+            updated = path.read_text()
+
+        self.assertEqual(download.call_count, 4)
+        self.assertIn('version "1.2.3"', updated)
+        self.assertIn('url "https://example.test/completion.tar.gz"', updated)
+        self.assertIn('sha256 "' + "f" * 64 + '"', updated)
+        for item in assets.values():
+            self.assertIn(item["name"], updated)
+            self.assertIn(f'sha256 "{item["sha256"]}"', updated)
+
+        self.assertIsNone(update_formula.parse_explicit_assets(None))
+        incomplete = dict(assets)
+        incomplete.pop("linux_arm64")
+        with self.assertRaisesRegex(SystemExit, "must contain exactly"):
+            update_formula.parse_explicit_assets(json.dumps(incomplete))
+        parsed = update_formula.parse_explicit_assets(json.dumps(assets))
+        assert parsed is not None
+        with (
+            mock.patch.object(update_formula, "sha256", return_value="f" * 64),
+            self.assertRaisesRegex(SystemExit, "SHA-256 mismatch"),
+        ):
+            update_formula.verify_explicit_assets("openclaw/example", "v1.2.3", parsed)
 
     def test_validates_exact_annotated_source_tag_refs(self) -> None:
         tag = "v1.2.3"

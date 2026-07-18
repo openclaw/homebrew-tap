@@ -68,6 +68,11 @@ GitHub repository in `owner/repo` form. Optional artifact inputs must resolve to
 assets and may use only the placeholders documented by the workflow. Pull requests and updates
 to `main` run the updater tests and validate every formula's Ruby syntax.
 
+Fleet release workflows use the optional `assets` JSON contract: exactly one `name` and `sha256`
+for each Darwin/Linux amd64/arm64 target. The updater renders those names and hashes verbatim,
+downloads all four public release assets, and refuses to commit on any digest mismatch. Omitting
+`assets` preserves the legacy template and filename-guessing behavior for older callers.
+
 Four-target binary releases can use the workflow's `verified-hashes-v1` contract. Supply all four
 canonical target SHA-256 inputs, `source_tag_object`, `source_tag_commit`, and `request_id` with an
 explicit `{target}` artifact template. This mode requires an existing formula, checks that the live
