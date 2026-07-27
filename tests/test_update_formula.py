@@ -505,6 +505,39 @@ end
         self.assertEqual(updated.count("v0.3.0.tar.gz"), 2)
         self.assertEqual(updated.count("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"), 2)
 
+    def test_target_update_handles_version_length_change(self) -> None:
+        formula = update_formula.seed_formula(
+            "example",
+            "openclaw/example",
+            "0.7.9",
+            "Example CLI",
+            "{formula}_{version}_{target}.tar.gz",
+        )
+        arguments = [
+            "--formula", "example",
+            "--tag", "v0.7.10",
+            "--repository", "openclaw/example",
+            "--artifact-template", "{formula}_{version}_{target}.tar.gz",
+        ]
+
+        previous_directory = pathlib.Path.cwd()
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "Formula").mkdir()
+            path = root / "Formula" / "example.rb"
+            path.write_text(formula)
+            os.chdir(root)
+            try:
+                with mock.patch.object(update_formula, "sha256", return_value="e" * 64):
+                    self.assertEqual(update_formula.main(arguments), 0)
+            finally:
+                os.chdir(previous_directory)
+            updated = path.read_text()
+
+        self.assertIn('version "0.7.10"', updated)
+        self.assertEqual(updated.count('sha256 "' + "e" * 64 + '"'), 4)
+        self.assertNotIn('""', updated)
+
     def test_rejects_different_architecture_urls_in_one_stanza(self) -> None:
         text = '''class Example < Formula
   version "1.0.0"

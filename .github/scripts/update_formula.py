@@ -1256,6 +1256,7 @@ def main(argv: list[str] | None = None) -> int:
 
     text = path.read_text()
     text = update_repository_metadata(text, args.repository)
+    text = update_version(text, version)
     has_macos = has_stanza(text, "on_macos")
     has_linux = has_stanza(text, "on_linux")
     url_sha_pairs = iter_url_sha_pairs(text)
@@ -1292,8 +1293,6 @@ def main(argv: list[str] | None = None) -> int:
         has_target_urls = target_url_count > 1
     if has_macos != has_linux and not has_target_urls:
         raise SystemExit("formulae with only one platform stanza need manual updates")
-
-    text = update_version(text, version)
 
     if has_target_urls:
         template = args.artifact_template or "{formula}_{version}_{target}.tar.gz"
