@@ -422,12 +422,47 @@ end
             hashes,
         )
 
+        self.assertNotRegex(updated, r"(?m)^\s*version(?:\s|$)")
         self.assertEqual(updated.count("define_method(:install) do"), 4)
         self.assertEqual(updated.count('bin.install "crabbox"'), 4)
         self.assertEqual(updated.count('bin.install "crabbox-apple-vm-helper"'), 4)
         for target, digest in hashes.items():
             self.assertIn(f"crabbox_#{{version}}_{target}.tar.gz", updated)
             self.assertEqual(updated.count(digest), 1)
+
+    def test_verified_hash_mode_rejects_duplicate_or_mismatched_version_lines(self) -> None:
+        formula = (ROOT / "Formula" / "crabbox.rb").read_text()
+        hashes = {
+            "darwin_amd64": "1" * 64,
+            "darwin_arm64": "2" * 64,
+            "linux_amd64": "3" * 64,
+            "linux_arm64": "4" * 64,
+        }
+        duplicate = formula.replace(
+            '  license "MIT"',
+            '  version "0.43.0"\n  version "0.43.0"\n  license "MIT"',
+        )
+        mismatched = formula.replace(
+            '  license "MIT"',
+            "  version '0.43.0'\n  license \"MIT\"",
+        )
+
+        cases = (
+            ("duplicate", duplicate, "expected at most one version"),
+            ("mismatched", mismatched, "matching the requested version"),
+        )
+        for description, candidate, message in cases:
+            with self.subTest(description=description), self.assertRaisesRegex(SystemExit, message):
+                update_formula.render_verified_target_formula(
+                    candidate,
+                    "openclaw/crabbox",
+                    "v0.43.1",
+                    "crabbox",
+                    "0.43.1",
+                    "{formula}_{version}_{target}.tar.gz",
+                    {},
+                    hashes,
+                )
 
     def test_verified_hash_mode_preserves_formula_metadata_order(self) -> None:
         formula = (ROOT / "Formula" / "wacli.rb").read_text()

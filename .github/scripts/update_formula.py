@@ -919,9 +919,12 @@ def render_verified_target_formula(
         hashes,
     )
 
-    version_lines = re.findall(r'^\s*version\s+"[^"]+"$', text, flags=re.MULTILINE)
-    if version_lines != [f'  version "{version}"']:
-        raise SystemExit("verified-hash mode requires exactly one canonical formula version line")
+    version_lines = re.findall(r"^\s*version(?:\s|$).*$", text, flags=re.MULTILINE)
+    if version_lines and version_lines != [f'  version "{version}"']:
+        raise SystemExit(
+            "verified-hash mode requires zero or one canonical formula version line "
+            "matching the requested version"
+        )
 
     actual_pairs = [
         (match.group("url").replace("#{version}", version), match.group("sha"))
