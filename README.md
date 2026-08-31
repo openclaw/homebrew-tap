@@ -31,7 +31,6 @@ brew install --cask openclaw/tap/<name>
 - `discrawl` — Mirror Discord into SQLite and search server history locally
 - `gitcrawl` — Local GitHub issue and PR archive, search, and clustering
 - `gogcli` — Google CLI for Gmail, Calendar, Drive, Docs, Sheets, and more
-- `goplaces` — Modern Go client + CLI for the Google Places API (New)
 - `graincrawl` — Local-first Granola crawler into SQLite and Markdown
 - `notcrawl` — Local-first Notion crawler into SQLite and normalized Markdown
 - `octopool` — Org-authenticated GitHub read relay and gh-compatible cache shim
@@ -42,7 +41,7 @@ brew install --cask openclaw/tap/<name>
 
 ### Casks
 
-None, yet
+- `goplaces` — Modern Go client + CLI for the Google Places API (New)
 
 ## Update / Uninstall
 

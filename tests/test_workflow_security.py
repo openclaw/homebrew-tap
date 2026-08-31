@@ -12,7 +12,7 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 UPDATE_WORKFLOW = ROOT / ".github" / "workflows" / "update-formula.yml"
 RECONCILE_WORKFLOW = ROOT / ".github" / "workflows" / "reconcile-formulae.yml"
-CHECKOUT_SHA = "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"
+CHECKOUT_SHA = "3d3c42e5aac5ba805825da76410c181273ba90b1"
 
 
 def run_blocks(text: str) -> list[str]:
