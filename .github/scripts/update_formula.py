@@ -1392,9 +1392,9 @@ def main(argv: list[str] | None = None) -> int:
             linux_sha = sha256(linux_url)
             text = replace_zero_or_one(
                 text,
-                r'(?P<prefix>url "https://github\.com/[^"]+/archive/refs/tags/[^"]+"\n\s+sha256 ")[0-9a-f]+(?P<suffix>")',
-                rf'\g<prefix>{linux_sha}\g<suffix>',
-                "source archive sha256",
+                r'(?P<prefix>url ")https://github\.com/[^"]+/archive/refs/tags/[^"]+(?P<middle>"\n\s+sha256 ")[0-9a-f]+(?P<suffix>")',
+                rf'\g<prefix>{linux_url}\g<middle>{linux_sha}\g<suffix>',
+                "source archive url and sha256",
             )
             print(f"Linux source: {linux_sha}  {linux_url}")
     else:

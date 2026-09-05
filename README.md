@@ -86,9 +86,11 @@ caller-supplied hashes without public downloads cannot update that formula. Its 
 `--verify-source-tag-only` check still accepts the complete verified-hash input set without writing.
 
 Existing `Formula/*.rb` files own each tool's caveats and install instructions. The updater
-preserves that content while changing release metadata, so maintain it here rather than in an
-upstream release workflow. Newly generated formulae remain in memory until all required
-checksum downloads and rendering succeed, so failed creation leaves no placeholder file.
+preserves that content while changing release metadata. In legacy multi-target mode, a supplied
+`linux_url` refreshes both the matching GitHub source-archive URL and its checksum. Maintain
+formula-specific content here rather than in an upstream release workflow. Newly generated
+formulae remain in memory until all required checksum downloads and rendering succeed, so
+failed creation leaves no placeholder file.
 For Gitcrawl, see the [configuration reference](https://gitcrawl.sh/configuration/)
 and [gh shim migration to Octopool](https://gitcrawl.sh/gh-shim/).
 

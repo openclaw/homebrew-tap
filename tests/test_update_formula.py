@@ -1239,6 +1239,49 @@ end
                 finally:
                     os.chdir(previous)
 
+    def test_multi_target_linux_url_updates_archive_url_and_sha(self) -> None:
+        old_archive = "https://github.com/openclaw/example/archive/refs/tags/v0.43.0.tar.gz"
+        new_archive = "https://github.com/openclaw/example/archive/refs/tags/v0.44.0.tar.gz"
+        formula = platform_install_formula().replace(
+            '  license "MIT"\n',
+            (
+                '  version "0.43.0"\n'
+                '  license "MIT"\n'
+                f'  url "{old_archive}"\n'
+                f'  sha256 "{"f" * 64}"\n'
+            ),
+        )
+        arguments = [
+            "--formula", "example",
+            "--tag", "v0.44.0",
+            "--repository", "openclaw/example",
+            "--artifact-template", "{formula}_{version}_{target}.tar.gz",
+            "--linux-url", new_archive,
+        ]
+
+        def digest_for(url: str) -> str:
+            return ("c" if url == new_archive else "e") * 64
+
+        previous_directory = pathlib.Path.cwd()
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "Formula").mkdir()
+            path = root / "Formula" / "example.rb"
+            path.write_text(formula)
+            os.chdir(root)
+            try:
+                with mock.patch.object(update_formula, "sha256", side_effect=digest_for):
+                    self.assertEqual(update_formula.main(arguments), 0)
+            finally:
+                os.chdir(previous_directory)
+            updated = path.read_text()
+
+        self.assertIn(f'url "{new_archive}"', updated)
+        self.assertNotIn(old_archive, updated)
+        self.assertIn('sha256 "' + "c" * 64 + '"', updated)
+        self.assertNotIn("f" * 64, updated)
+        self.assertIn("example_0.44.0_linux_amd64.tar.gz", updated)
+
     def test_rejects_different_architecture_urls_in_one_stanza(self) -> None:
         text = '''class Example < Formula
   version "1.0.0"
