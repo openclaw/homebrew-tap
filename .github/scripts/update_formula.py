@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import ipaddress
 import json
 import os
 import pathlib
@@ -159,6 +160,15 @@ def validate_url(value: str, description: str) -> str:
     parsed = urllib.parse.urlsplit(value)
     if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.fragment:
         raise SystemExit(f"invalid {description} {value!r}; expected an HTTPS URL without credentials or fragments")
+    hostname = parsed.hostname.rstrip(".").casefold()
+    if hostname == "localhost" or hostname.endswith(".localhost"):
+        raise SystemExit(f"invalid {description} {value!r}; host must not be loopback, link-local, or private")
+    try:
+        address = ipaddress.ip_address(parsed.hostname)
+    except ValueError:
+        return value
+    if not address.is_global or address.is_multicast:
+        raise SystemExit(f"invalid {description} {value!r}; host must not be loopback, link-local, or private")
     return value
 
 
@@ -186,6 +196,8 @@ def sha256(url: str) -> str:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     digest = hashlib.sha256()
     with urllib.request.urlopen(request) as response:
+        final_url = response.geturl() if callable(getattr(response, "geturl", None)) else url
+        validate_url(final_url, "redirected download URL")
         while chunk := response.read(1024 * 1024):
             digest.update(chunk)
     return digest.hexdigest()

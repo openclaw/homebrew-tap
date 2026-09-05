@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import email.message
 import hashlib
 import importlib.util
 import io
@@ -10,6 +11,7 @@ import re
 import tempfile
 import unittest
 import urllib.error
+import urllib.response
 from unittest import mock
 
 
@@ -483,6 +485,11 @@ class UpdateFormulaTest(unittest.TestCase):
             "http://github.com/openclaw/gogcli",
             "https://user@github.com/repo",
             'https://github.com/openclaw/example/releases/download/v1.0.0/evil"#{system}.tar.gz',
+            "https://127.0.0.1/secret",
+            "https://169.254.169.254/latest/meta-data/",
+            "https://192.168.0.1/asset.tar.gz",
+            "https://localhost/secret",
+            "https://[::1]/secret",
         ):
             with self.subTest(url=value), self.assertRaises(SystemExit):
                 update_formula.validate_url(value, "URL")
@@ -1172,6 +1179,40 @@ end
         self.assertIn('version "0.27.0"', updated)
         self.assertIn('sha256 "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"', updated)
         self.assertIn("CodexBar-macos-universal-#{version}.zip", updated)
+
+    def test_sha256_rejects_redirect_off_https_allowlist(self) -> None:
+        initial = "https://github.com/openclaw/example/releases/download/v1.0.0/example.tar.gz"
+        cases = (
+            "http://127.0.0.1/latest/meta-data/",
+            "https://127.0.0.1/secret",
+            "https://[::1]/secret",
+            "https://169.254.169.254/latest/meta-data/",
+            "https://192.168.1.10/asset.tar.gz",
+            "https://10.0.0.1/asset.tar.gz",
+            "https://localhost/secret",
+            "https://user:pass@github.com/openclaw/example/evil.tar.gz",
+        )
+        for redirected in cases:
+            with self.subTest(redirected=redirected):
+                response = urllib.response.addinfourl(
+                    io.BytesIO(b"ssrf-body"),
+                    email.message.Message(),
+                    redirected,
+                    200,
+                )
+                with (
+                    mock.patch.object(update_formula.urllib.request, "urlopen", return_value=response),
+                    self.assertRaises(SystemExit),
+                ):
+                    update_formula.sha256(initial)
+
+    def test_sha256_hashes_when_final_url_stays_on_allowlist(self) -> None:
+        payload = b"formula-asset"
+        url = "https://github.com/openclaw/example/releases/download/v1.0.0/example.tar.gz"
+        response = urllib.response.addinfourl(io.BytesIO(payload), email.message.Message(), url, 200)
+        with mock.patch.object(update_formula.urllib.request, "urlopen", return_value=response):
+            digest = update_formula.sha256(url)
+        self.assertEqual(digest, hashlib.sha256(payload).hexdigest())
 
 
 if __name__ == "__main__":
