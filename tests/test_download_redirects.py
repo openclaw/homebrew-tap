@@ -43,6 +43,7 @@ class DownloadRedirectTest(unittest.TestCase):
             check=True, capture_output=True, timeout=30,
         )
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
         context.load_cert_chain(cls.certificate, key)
         cls.payload = b"release archive through verified TLS\n"
         cls.requests: list[tuple[str, str]] = []
