@@ -4,7 +4,7 @@
 
 **Highlights:** Install OCM and Peekaboo from the tap, keep Goplaces quarantine protection, and recover release updates without publishing partial formulae.
 
-- Add OCM v0.2.39 for macOS ARM64/Intel and Linux x86_64, preserving signed release binaries, reconciling Rust-target archives, and testing installed packages on all three platforms. Use `brew upgrade openclaw/tap/ocm`; this initial binary does not guard against self-update.
+- Update OCM to v0.2.40 for macOS ARM64/Intel and Linux x86_64, preserving signed release binaries and testing installed packages on all three platforms. Use `brew upgrade openclaw/tap/ocm`; self-update now refuses to replace Homebrew-managed binaries.
 - Add the Peekaboo 4.3.1 universal macOS formula and list it in the package guide.
 - Remove the deprecated Goplaces postflight hook, preserving quarantine on signed, notarized binaries and eliminating Homebrew's warning; thanks @karbo-hub.
 - Validate every checksum-download redirect before following it, rejecting HTTPS downgrades, credentials, and fragments while preserving the existing host contract; thanks @SebTardif.
