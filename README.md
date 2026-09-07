@@ -26,6 +26,7 @@ brew install --cask openclaw/tap/<name>
 
 - `axorc` — Inspect and automate macOS Accessibility from the shell
 - `clawscan` — Agent-skill security scanner harness for ClawHub
+- `clawdex` — Local-first address book backed by Markdown
 - `crabbox` — Remote Linux test boxes for dirty worktrees and CI hydration
 - `crabfleet` — Fleet management CLI for Crabbox workers
 - `crawlbar` — macOS menu bar control plane for local-first crawler CLIs
