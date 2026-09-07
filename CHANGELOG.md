@@ -4,6 +4,7 @@
 
 **Highlights:** Release updates fail cleanly without publishing partial or placeholder formulae, while preserving supported legacy layouts.
 
+- Add OCM v0.2.39 for macOS ARM64/Intel and Linux x86_64, preserving signed release binaries, reconciling Rust-target archives, and testing installed packages on all three platforms. Use `brew upgrade openclaw/tap/ocm`; this initial binary does not guard against self-update.
 - Reject unrecognized release assets before partial updates while preserving smaller legacy target inventories and resources; thanks @SebTardif.
 - Keep Linux source-archive URLs and checksums in sync during multi-target updates; thanks @SebTardif.
 - Leave no zero-checksum formula behind when a new formula download fails; thanks @SebTardif.

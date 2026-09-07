@@ -88,6 +88,75 @@ class ReconcileFormulaeTest(unittest.TestCase):
                 self.assertEqual(info.name, path.stem)
                 self.assertTrue(info.update_options)
 
+    def test_ocm_reconciliation_preserves_three_targets_and_installed_binary_policy(self) -> None:
+        original = (ROOT / "Formula" / "ocm.rb").read_text()
+        info = reconcile_formulae.parse_formula(ROOT / "Formula" / "ocm.rb")
+        newer = f"v{info.current_version.major}.{info.current_version.minor + 1}.0"
+        targets = ("aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu")
+        urls = [
+            f"https://github.com/openclaw/ocm/releases/download/{newer}/ocm-{target}.tar.gz"
+            for target in targets
+        ]
+        expected = original.replace(f'version "{info.current_tag[1:]}"', f'version "{newer[1:]}"')
+        for pair in reconcile_formulae.update_formula.iter_url_sha_pairs(original):
+            url = pair.group("url").replace(f"/{info.current_tag}/", f"/{newer}/")
+            self.assertIn(url, urls)
+            expected = expected.replace(pair.group("url"), url).replace(
+                pair.group("sha"), hashlib.sha256(url.encode()).hexdigest(),
+            )
+
+        for dry_run in (False, True):
+            for failed_download in (False, True):
+                with self.subTest(dry_run=dry_run, failed_download=failed_download):
+                    directory, root = self.make_tap()
+                    self.addCleanup(directory.cleanup)
+                    ocm = root / "Formula" / "ocm.rb"
+                    ocm.write_text(original)
+                    downloads = []
+
+                    def response(request, **kwargs):
+                        url = request.full_url
+                        if url == "https://api.github.com/repos/openclaw/ocm/releases/latest":
+                            return io.BytesIO(json.dumps({"tag_name": newer}).encode())
+                        if url == "https://api.github.com/repos/openclaw/example/releases/latest":
+                            return io.BytesIO(b'{"tag_name":"v1.2.3"}')
+                        self.assertIn(url, urls)
+                        downloads.append(url)
+                        if failed_download and url == urls[-1]:
+                            raise reconcile_formulae.urllib.error.URLError("fixture download failed")
+                        return io.BytesIO(url.encode())
+
+                    def run(command, *, cwd, check):
+                        self.assertTrue(check)
+                        self.assertEqual(pathlib.Path(command[1]).name, "update_formula.py")
+                        previous_directory = pathlib.Path.cwd()
+                        os.chdir(cwd)
+                        try:
+                            self.assertEqual(reconcile_formulae.update_formula.main(command[2:]), 0)
+                        finally:
+                            os.chdir(previous_directory)
+
+                    output = io.StringIO()
+                    with (
+                        mock.patch.object(reconcile_formulae.urllib.request, "urlopen", side_effect=response),
+                        mock.patch.object(reconcile_formulae.subprocess, "run", side_effect=run),
+                        contextlib.redirect_stdout(output),
+                    ):
+                        summary = reconcile_formulae.reconcile(root, None, dry_run)
+                    self.assertCountEqual(downloads, urls)
+                    self.assertEqual(summary, reconcile_formulae.Summary(
+                        scanned=2, current=1, drift=1,
+                        updated=0 if failed_download else 1,
+                        failed=1 if failed_download else 0,
+                    ))
+                    self.assertEqual(ocm.read_text(), original if dry_run or failed_download else expected)
+                    self.assertEqual((root / "Formula" / "example.rb").read_text(), formula_text())
+                    if dry_run and not failed_download:
+                        self.assertIn("WOULD UPDATE ocm", output.getvalue())
+                        for line in expected.splitlines():
+                            if line.strip().startswith(('url "', 'sha256 "', 'version "')):
+                                self.assertIn("+" + line, output.getvalue())
+
     def test_crabbox_reconciliation_uses_published_stable_releases_in_all_scan_modes(self) -> None:
         original = (ROOT / "Formula" / "crabbox.rb").read_text()
         info = reconcile_formulae.parse_formula(ROOT / "Formula" / "crabbox.rb")

@@ -34,6 +34,7 @@ brew install --cask openclaw/tap/<name>
 - `gogcli` — Google CLI for Gmail, Calendar, Drive, Docs, Sheets, and more
 - `graincrawl` — Local-first Granola crawler into SQLite and Markdown
 - `notcrawl` — Local-first Notion crawler into SQLite and normalized Markdown
+- `ocm` — Manage isolated OpenClaw environments, runtimes, and services
 - `octopool` — Org-authenticated GitHub read relay and gh-compatible cache shim
 - `slacrawl` — Go-based CLI for mirroring Slack workspace data into local SQLite
 - `telecrawl` — Telegram Desktop archive CLI with encrypted Git backups
@@ -60,6 +61,9 @@ brew uninstall --cask --zap openclaw/tap/<name>
 ## Notes
 
 - Run `brew info openclaw/tap/<name>` for per-tool caveats (permissions, setup steps, etc.).
+- OCM supports macOS Apple Silicon/Intel and Linux x86_64. Install with
+  `brew install openclaw/tap/ocm` and update with `brew upgrade openclaw/tap/ocm`,
+  not `ocm self update`. The initial v0.2.39 binary has no Homebrew self-update guard.
 
 ## Maintainers
 
@@ -102,6 +106,12 @@ It never downgrades, skips drafts and prereleases, and makes no commit when ever
 current. Manual reconciles default to dry-run and can target one formula. The reconciler reads public
 release metadata and pushes with this tap's own `GITHUB_TOKEN`; it needs no cross-repository token or
 other external credential. The dispatch path remains the preferred low-latency path.
+
+OCM uses reconciliation directly: its three Rust-target archives are discovered from the
+formula, without a cross-repository dispatch token or a Linux ARM64 artifact. Installation
+preserves the published executable bytes, including the macOS Developer ID signature.
+Changes to the OCM formula or its updater run installed-Homebrew tests on macOS ARM64,
+macOS x86_64, and Linux x86_64, using the checked-out formula rather than the public tap.
 
 Pull requests and updates to `main` run the updater and reconciler tests and validate every formula's
 Ruby syntax.

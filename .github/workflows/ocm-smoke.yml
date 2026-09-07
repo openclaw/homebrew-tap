@@ -1,0 +1,48 @@
+name: OCM Install
+
+on:
+  pull_request:
+    paths:
+      - Formula/ocm.rb
+      - .github/scripts/update_formula.py
+      - .github/scripts/reconcile_formulae.py
+      - .github/workflows/ocm-smoke.yml
+      - tests/smoke_ocm.sh
+  push:
+    branches:
+      - main
+    paths:
+      - Formula/ocm.rb
+      - .github/scripts/update_formula.py
+      - .github/scripts/reconcile_formulae.py
+      - .github/workflows/ocm-smoke.yml
+      - tests/smoke_ocm.sh
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: OCM install (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+          - runner: ubuntu-24.04
+            arch: x86_64
+    steps:
+      - name: Checkout tap repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install and test the checked-out OCM formula
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: bash tests/smoke_ocm.sh

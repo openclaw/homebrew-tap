@@ -387,11 +387,11 @@ def parse_target_aliases(value: str | None) -> dict[str, str]:
 def target_markers(target: str, alias: str | None = None) -> tuple[str, ...]:
     markers = {target, target.replace("_", "-")}
     if target == "darwin_amd64":
-        markers.update(("macos-x86_64", "macos-amd64", "darwin-x86_64"))
+        markers.update(("macos-x86_64", "macos-amd64", "darwin-x86_64", "x86_64-apple-darwin"))
     elif target == "darwin_arm64":
-        markers.update(("macos-arm64", "darwin-aarch64"))
+        markers.update(("macos-arm64", "darwin-aarch64", "aarch64-apple-darwin"))
     elif target == "linux_amd64":
-        markers.update(("linux-x86_64", "linux-amd64"))
+        markers.update(("linux-x86_64", "linux-amd64", "x86_64-unknown-linux-gnu"))
     elif target == "linux_arm64":
         markers.update(("linux-aarch64", "linux-arm64"))
     elif target == "darwin_universal":
