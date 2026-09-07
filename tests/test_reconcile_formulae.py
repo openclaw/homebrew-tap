@@ -114,7 +114,7 @@ class ReconcileFormulaeTest(unittest.TestCase):
                     ocm.write_text(original)
                     downloads = []
 
-                    def response(request, **kwargs):
+                    def response(request, data=None, timeout=None):
                         url = request.full_url
                         if url == "https://api.github.com/repos/openclaw/ocm/releases/latest":
                             return io.BytesIO(json.dumps({"tag_name": newer}).encode())
@@ -138,7 +138,7 @@ class ReconcileFormulaeTest(unittest.TestCase):
 
                     output = io.StringIO()
                     with (
-                        mock.patch.object(reconcile_formulae.urllib.request, "urlopen", side_effect=response),
+                        mock.patch.object(reconcile_formulae.urllib.request.OpenerDirector, "open", side_effect=response),
                         mock.patch.object(reconcile_formulae.subprocess, "run", side_effect=run),
                         contextlib.redirect_stdout(output),
                     ):
@@ -180,7 +180,7 @@ class ReconcileFormulaeTest(unittest.TestCase):
                         crabbox.write_text(original)
                         downloads = []
 
-                        def response(request, **kwargs):
+                        def response(request, data=None, timeout=None):
                             url = request.full_url
                             if url == "https://api.github.com/repos/openclaw/crabbox/releases/latest":
                                 if tag is None:
@@ -211,7 +211,7 @@ class ReconcileFormulaeTest(unittest.TestCase):
 
                         output = io.StringIO()
                         with (
-                            mock.patch.object(reconcile_formulae.urllib.request, "urlopen", side_effect=response),
+                            mock.patch.object(reconcile_formulae.urllib.request.OpenerDirector, "open", side_effect=response),
                             mock.patch.object(reconcile_formulae.subprocess, "run", side_effect=run) as update,
                             contextlib.redirect_stdout(output),
                         ):

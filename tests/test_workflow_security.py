@@ -246,7 +246,7 @@ def download(request, **_kwargs):
         if os.environ["MODE"] == "wrong-hash":
             return io.BytesIO(b"wrong bytes")
     return io.BytesIO(target.encode())
-with mock.patch("urllib.request.urlopen", side_effect=download), \\
+with mock.patch("urllib.request.OpenerDirector.open", side_effect=download), \\
      mock.patch("subprocess.run", side_effect=AssertionError("source tag lookup attempted")):
     runpy.run_path(sys.argv[0], run_name="__main__")
 ''')

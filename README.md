@@ -75,6 +75,11 @@ GitHub repository in `owner/repo` form. Optional artifact inputs must resolve to
 assets and may use only the placeholders documented by the workflow. Downloads use a 30-second
 socket inactivity timeout and stream archive bytes without imposing a size limit. This timeout
 bounds stalled socket operations, not the total duration of a progressing download.
+Every redirect destination is validated before it is requested: HTTPS is required, and
+credentials and fragments are rejected. Relative HTTPS redirects remain supported. This
+does not impose a public-only host policy: private, localhost, and numeric host spellings
+such as `127.1`, `2130706433`, and `0x7f000001` remain allowed, subject to normal TLS
+certificate verification. DNS/IP restrictions are outside this download contract.
 
 **Crabbox uses the ordinary four-target `assets` handoff after publication.** The
 [Crabbox release process](https://github.com/openclaw/crabbox/blob/main/docs/RELEASING.md)

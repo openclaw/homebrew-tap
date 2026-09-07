@@ -184,12 +184,24 @@ def ruby_string(value: str) -> str:
     return f'"{escaped}"'
 
 
+class DownloadRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # urllib resolves relative Locations before this hook, but has not followed them yet.
+        try:
+            validate_url(newurl, "redirected download URL")
+        except SystemExit:
+            fp.close()
+            raise
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def sha256(url: str) -> str:
     validate_url(url, "download URL")
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     digest = hashlib.sha256()
+    opener = urllib.request.build_opener(DownloadRedirectHandler())
     try:
-        with urllib.request.urlopen(request, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response:
+        with opener.open(request, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response:
             while chunk := response.read(1024 * 1024):
                 digest.update(chunk)
     except TimeoutError as error:

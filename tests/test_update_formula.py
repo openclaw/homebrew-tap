@@ -89,7 +89,7 @@ class UpdateFormulaTest(unittest.TestCase):
                     seed_formula=mock.DEFAULT,
                     update_cask=mock.DEFAULT,
                 ) as operations,
-                mock.patch.object(update_formula.urllib.request, "urlopen") as network,
+                mock.patch.object(update_formula.urllib.request.OpenerDirector, "open") as network,
                 mock.patch.object(update_formula.subprocess, "run") as process,
                 mock.patch.object(pathlib.Path, "write_text") as write,
             ):
@@ -174,7 +174,7 @@ class UpdateFormulaTest(unittest.TestCase):
                             return io.BytesIO(urls[request.full_url])
 
                         with (
-                            mock.patch.object(update_formula.urllib.request, "urlopen", side_effect=download) as network,
+                            mock.patch.object(update_formula.urllib.request.OpenerDirector, "open", side_effect=download) as network,
                             mock.patch.object(update_formula, "verify_remote_source_tag") as verify_tag,
                         ):
                             self.assertEqual(update_formula.main(crabbox_arguments(mode)), 0)
@@ -221,7 +221,7 @@ class UpdateFormulaTest(unittest.TestCase):
                         os.chdir(root)
                         try:
                             with (
-                                mock.patch.object(update_formula.urllib.request, "urlopen", side_effect=download) as network,
+                                mock.patch.object(update_formula.urllib.request.OpenerDirector, "open", side_effect=download) as network,
                                 mock.patch.object(update_formula, "update_cask") as cask,
                                 self.assertRaisesRegex(
                                     (SystemExit, urllib.error.HTTPError),
@@ -249,7 +249,7 @@ class UpdateFormulaTest(unittest.TestCase):
             previous_directory = pathlib.Path.cwd()
             os.chdir(root)
             try:
-                with mock.patch.object(update_formula.urllib.request, "urlopen", side_effect=download) as network:
+                with mock.patch.object(update_formula.urllib.request.OpenerDirector, "open", side_effect=download) as network:
                     self.assertEqual(update_formula.main(crabbox_arguments("explicit-assets")), 0)
                 self.assertEqual(network.call_count, 4)
             finally:
@@ -1463,8 +1463,8 @@ end
         payload = b"formula-asset"
         url = "https://github.com/openclaw/example/releases/download/v1.0.0/example.tar.gz"
         with mock.patch.object(
-            update_formula.urllib.request,
-            "urlopen",
+            update_formula.urllib.request.OpenerDirector,
+            "open",
             return_value=io.BytesIO(payload),
         ) as network:
             digest = update_formula.sha256(url)
@@ -1477,8 +1477,8 @@ end
         url = "https://github.com/openclaw/example/releases/download/v1.0.0/example.tar.gz"
         with (
             mock.patch.object(
-                update_formula.urllib.request,
-                "urlopen",
+                update_formula.urllib.request.OpenerDirector,
+                "open",
                 side_effect=TimeoutError("timed out"),
             ),
             self.assertRaisesRegex(SystemExit, r"timed out downloading .* after 30s"),
@@ -1489,8 +1489,8 @@ end
         url = "https://github.com/openclaw/example/releases/download/v1.0.0/example.tar.gz"
         with (
             mock.patch.object(
-                update_formula.urllib.request,
-                "urlopen",
+                update_formula.urllib.request.OpenerDirector,
+                "open",
                 side_effect=urllib.error.URLError(TimeoutError("timed out")),
             ),
             self.assertRaisesRegex(SystemExit, r"timed out downloading .* after 30s"),

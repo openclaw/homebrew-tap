@@ -7,6 +7,7 @@
 - Add OCM v0.2.39 for macOS ARM64/Intel and Linux x86_64, preserving signed release binaries, reconciling Rust-target archives, and testing installed packages on all three platforms. Use `brew upgrade openclaw/tap/ocm`; this initial binary does not guard against self-update.
 - Add the Peekaboo 4.3.1 universal macOS formula and list it in the package guide.
 - Remove the deprecated Goplaces postflight hook, preserving quarantine on signed, notarized binaries and eliminating Homebrew's warning; thanks @karbo-hub.
+- Validate every checksum-download redirect before following it, rejecting HTTPS downgrades, credentials, and fragments while preserving the existing host contract; thanks @SebTardif.
 - Automatically reconcile formulae with their latest stable source releases every three hours without downgrading or selecting drafts and prereleases.
 - Reject unrecognized release assets before partial updates while preserving smaller legacy target inventories and resources; thanks @SebTardif.
 - Keep Linux source-archive URLs and checksums in sync during multi-target updates; thanks @SebTardif.
