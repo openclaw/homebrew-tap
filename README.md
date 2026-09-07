@@ -65,7 +65,7 @@ brew uninstall --cask --zap openclaw/tap/<name>
 - Run `brew info openclaw/tap/<name>` for per-tool caveats (permissions, setup steps, etc.).
 - OCM supports macOS Apple Silicon/Intel and Linux x86_64. Install with
   `brew install openclaw/tap/ocm` and update with `brew upgrade openclaw/tap/ocm`,
-  not `ocm self update`. The initial v0.2.39 binary has no Homebrew self-update guard.
+  not `ocm self update`, which refuses to replace Homebrew-managed binaries.
 
 ## Maintainers
 

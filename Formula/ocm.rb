@@ -1,17 +1,17 @@
 class Ocm < Formula
   desc "Manage isolated OpenClaw environments, runtimes, and services"
   homepage "https://github.com/openclaw/ocm"
-  version "0.2.39"
+  version "0.2.40"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/openclaw/ocm/releases/download/v0.2.39/ocm-aarch64-apple-darwin.tar.gz"
-      sha256 "a8c9700227bee9ed9264251512e75a4b434700cb4b2cd9a5bcac2b56fde25f39"
+      url "https://github.com/openclaw/ocm/releases/download/v0.2.40/ocm-aarch64-apple-darwin.tar.gz"
+      sha256 "9ac67161b3345e3a85e5ce0a7412cba304c9aa30cae0580e34d894b307f7ad9c"
     end
     on_intel do
-      url "https://github.com/openclaw/ocm/releases/download/v0.2.39/ocm-x86_64-apple-darwin.tar.gz"
-      sha256 "6f221625ff54f62495bc61c8ab4f81e66ddecf079167a37548c1fe1a4da76034"
+      url "https://github.com/openclaw/ocm/releases/download/v0.2.40/ocm-x86_64-apple-darwin.tar.gz"
+      sha256 "97772432e8a4a379d96b439faa041bcdca1098f8015222186d6c34fbb06e0de3"
     end
   end
 
@@ -19,8 +19,8 @@ class Ocm < Formula
     depends_on arch: :x86_64
 
     on_intel do
-      url "https://github.com/openclaw/ocm/releases/download/v0.2.39/ocm-x86_64-unknown-linux-gnu.tar.gz"
-      sha256 "e34a5e1b7f8cfab011ebb3b81fd661da2ec71e427084da756fa3bde61f5a4d9a"
+      url "https://github.com/openclaw/ocm/releases/download/v0.2.40/ocm-x86_64-unknown-linux-gnu.tar.gz"
+      sha256 "d6236c33040af859ff79aac09fbf5f00098e7bda09b009d26bf7360d5eb82e12"
     end
   end
 
@@ -35,7 +35,6 @@ class Ocm < Formula
       Update this Homebrew installation with:
         brew upgrade openclaw/tap/ocm
       Do not run `ocm self update` on this installation.
-      OCM v0.2.39 does not prevent self-update from replacing a Homebrew-managed binary.
     EOS
   end
 
