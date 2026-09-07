@@ -37,6 +37,7 @@ brew install --cask openclaw/tap/<name>
 - `notcrawl` — Local-first Notion crawler into SQLite and normalized Markdown
 - `ocm` — Manage isolated OpenClaw environments, runtimes, and services
 - `octopool` — Org-authenticated GitHub read relay and gh-compatible cache shim
+- `peekaboo` — Capture macOS screenshots and automate the desktop
 - `slacrawl` — Go-based CLI for mirroring Slack workspace data into local SQLite
 - `telecrawl` — Telegram Desktop archive CLI with encrypted Git backups
 - `wacli` — WhatsApp CLI built on whatsmeow
