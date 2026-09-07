@@ -40,7 +40,7 @@ class Ocm < Formula
   end
 
   test do
-    assert_match "ocm #{version}", shell_output("#{bin}/ocm --version")
+    assert_equal "#{version}\n", shell_output("#{bin}/ocm --version")
     assert_match "ocm", shell_output("#{bin}/ocm --help")
     if OS.mac?
       system "/usr/bin/codesign", "--verify", "--strict", bin/"ocm"

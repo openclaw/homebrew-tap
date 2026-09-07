@@ -43,7 +43,7 @@ with open(sys.argv[2]) as handle:
 assert any(item["version"] == formula["versions"]["stable"] for item in formula["installed"])
 assert receipt["source"]["tap"] == "openclaw/tap"
 PY
-[[ "$("$binary" --version)" == "ocm $version" ]]
+[[ "$("$binary" --version)" == "$version" ]]
 "$binary" --help
 
 payload="$RUNNER_TEMP/ocm-release-payload"
