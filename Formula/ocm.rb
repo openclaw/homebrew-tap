@@ -1,17 +1,17 @@
 class Ocm < Formula
   desc "Manage isolated OpenClaw environments, runtimes, and services"
   homepage "https://github.com/openclaw/ocm"
-  version "0.2.40"
+  version "0.2.41"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/openclaw/ocm/releases/download/v0.2.40/ocm-aarch64-apple-darwin.tar.gz"
-      sha256 "9ac67161b3345e3a85e5ce0a7412cba304c9aa30cae0580e34d894b307f7ad9c"
+      url "https://github.com/openclaw/ocm/releases/download/v0.2.41/ocm-aarch64-apple-darwin.tar.gz"
+      sha256 "99640a65ecc4d8175c76c4336b3b9b3a4c8f9877f40a4b6d9c4ce4c66330b83c"
     end
     on_intel do
-      url "https://github.com/openclaw/ocm/releases/download/v0.2.40/ocm-x86_64-apple-darwin.tar.gz"
-      sha256 "97772432e8a4a379d96b439faa041bcdca1098f8015222186d6c34fbb06e0de3"
+      url "https://github.com/openclaw/ocm/releases/download/v0.2.41/ocm-x86_64-apple-darwin.tar.gz"
+      sha256 "34b3ec80742df8fdf18290611e3ec30daba1291f0ba1c7b0ef829672036b622e"
     end
   end
 
@@ -19,8 +19,8 @@ class Ocm < Formula
     depends_on arch: :x86_64
 
     on_intel do
-      url "https://github.com/openclaw/ocm/releases/download/v0.2.40/ocm-x86_64-unknown-linux-gnu.tar.gz"
-      sha256 "d6236c33040af859ff79aac09fbf5f00098e7bda09b009d26bf7360d5eb82e12"
+      url "https://github.com/openclaw/ocm/releases/download/v0.2.41/ocm-x86_64-unknown-linux-gnu.tar.gz"
+      sha256 "e57dc642d70310f8bf19096c0fc41aab0325c8fab24b9ed0c6367c60a02b6198"
     end
   end
 
