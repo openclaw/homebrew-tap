@@ -27,3 +27,11 @@ jobs:
 
       - name: Validate Homebrew style
         run: brew style Formula/*.rb
+
+      - name: Validate tap on every Homebrew platform
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: |
+          brew tap --custom-remote openclaw/tap "$GITHUB_WORKSPACE"
+          brew readall --os=all --arch=all openclaw/tap
+          brew ruby tests/test_ocm_platforms.rb
