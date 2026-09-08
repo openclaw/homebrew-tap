@@ -105,8 +105,13 @@ class ReconcileFormulaeTest(unittest.TestCase):
                 pair.group("sha"), hashlib.sha256(url.encode()).hexdigest(),
             )
 
+        download_order = [
+            pair.group("url").replace(f"/{info.current_tag}/", f"/{newer}/")
+            for pair in reconcile_formulae.update_formula.iter_url_sha_pairs(original)
+        ]
+        self.assertCountEqual(download_order, urls)
         for dry_run in (False, True):
-            for failed_download in (False, True):
+            for failed_download in (None, *urls):
                 with self.subTest(dry_run=dry_run, failed_download=failed_download):
                     directory, root = self.make_tap()
                     self.addCleanup(directory.cleanup)
@@ -122,7 +127,7 @@ class ReconcileFormulaeTest(unittest.TestCase):
                             return io.BytesIO(b'{"tag_name":"v1.2.3"}')
                         self.assertIn(url, urls)
                         downloads.append(url)
-                        if failed_download and url == urls[-1]:
+                        if url == failed_download:
                             raise reconcile_formulae.urllib.error.URLError("fixture download failed")
                         return io.BytesIO(url.encode())
 
@@ -143,7 +148,11 @@ class ReconcileFormulaeTest(unittest.TestCase):
                         contextlib.redirect_stdout(output),
                     ):
                         summary = reconcile_formulae.reconcile(root, None, dry_run)
-                    self.assertCountEqual(downloads, urls)
+                    expected_downloads = (
+                        download_order[:download_order.index(failed_download) + 1]
+                        if failed_download else download_order
+                    )
+                    self.assertEqual(downloads, expected_downloads)
                     self.assertEqual(summary, reconcile_formulae.Summary(
                         scanned=2, current=1, drift=1,
                         updated=0 if failed_download else 1,

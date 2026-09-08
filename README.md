@@ -121,7 +121,9 @@ Changes to the OCM formula or its updater run installed-Homebrew tests on macOS 
 macOS x86_64, and Linux x86_64, using the checked-out formula rather than the public tap.
 
 Pull requests and updates to `main` run the updater and reconciler tests and validate every formula's
-Ruby syntax.
+Ruby syntax. They also load the checked-out tap on every Homebrew OS/architecture combination,
+including unsupported installation targets. Formulae must always define a URL; use an architecture
+requirement to reject unsupported installs rather than leaving platform metadata empty.
 
 Fleet release workflows use the optional `assets` JSON contract: exactly one `name` and `sha256`
 for each Darwin/Linux amd64/arm64 target. The updater renders those names and hashes verbatim,

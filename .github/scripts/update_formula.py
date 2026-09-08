@@ -425,7 +425,9 @@ def classify_target(url: str, aliases: dict[str, str], version: str) -> str | No
 def iter_url_sha_pairs(text: str) -> list[re.Match[str]]:
     return list(
         re.finditer(
-            r'(?P<prefix>url ")(?P<url>[^"]+)(?P<middle>"\n\s+sha256 ")(?P<sha>[0-9a-f]+)(?P<suffix>")',
+            r'(?P<prefix>url ")(?P<url>[^"]+)'
+            r'(?P<middle>"\n(?:[ \t]+version "[^"\n]+"\n)?\s+sha256 ")'
+            r'(?P<sha>[0-9a-f]+)(?P<suffix>")',
             text,
             flags=re.MULTILINE,
         )

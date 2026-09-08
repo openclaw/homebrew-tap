@@ -1,7 +1,9 @@
 class Ocm < Formula
   desc "Manage isolated OpenClaw environments, runtimes, and services"
   homepage "https://github.com/openclaw/ocm"
+  url "https://github.com/openclaw/ocm/releases/download/v0.2.41/ocm-x86_64-unknown-linux-gnu.tar.gz"
   version "0.2.41"
+  sha256 "e57dc642d70310f8bf19096c0fc41aab0325c8fab24b9ed0c6367c60a02b6198"
   license "MIT"
 
   on_macos do
@@ -17,11 +19,6 @@ class Ocm < Formula
 
   on_linux do
     depends_on arch: :x86_64
-
-    on_intel do
-      url "https://github.com/openclaw/ocm/releases/download/v0.2.41/ocm-x86_64-unknown-linux-gnu.tar.gz"
-      sha256 "e57dc642d70310f8bf19096c0fc41aab0325c8fab24b9ed0c6367c60a02b6198"
-    end
   end
 
   skip_clean "bin/ocm"
