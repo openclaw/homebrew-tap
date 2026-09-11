@@ -61,6 +61,16 @@ class WorkflowSecurityTest(unittest.TestCase):
         self.assertNotIn("GITHUB_TOKEN", text)
         self.assertNotIn("GITHUB_TOKEN", (ROOT / ".github" / "scripts" / "update_formula.py").read_text())
 
+    def test_formula_profile_input_is_forwarded_and_validated_as_data(self) -> None:
+        text = UPDATE_WORKFLOW.read_text()
+        self.assertRegex(text, r"(?m)^      formula_profile:$")
+        self.assertIn("FORMULA_PROFILE: ${{ inputs.formula_profile }}", text)
+        update = named_step_run(text, "Update formula")
+        self.assertIn('args+=(--formula-profile "$FORMULA_PROFILE")', update)
+        validation = named_step_run(text, "Validate update")
+        self.assertIn('ruby -c "$profile"', validation)
+        self.assertIn("brew style Formula/*.rb", validation)
+
     def test_dispatch_is_bound_to_the_exact_protected_default_branch_workflow(self) -> None:
         text = UPDATE_WORKFLOW.read_text()
         self.assertIn("# verified-hashes-v1", text)
@@ -154,6 +164,7 @@ class WorkflowSecurityTest(unittest.TestCase):
                 "DARWIN_ARM64_SHA256": "",
                 "DESCRIPTION": "",
                 "FORMULA": payload,
+                "FORMULA_PROFILE": payload,
                 "LINUX_AMD64_SHA256": "",
                 "LINUX_ARM64_SHA256": "",
                 "LINUX_URL": "",
@@ -174,6 +185,7 @@ class WorkflowSecurityTest(unittest.TestCase):
 
             arguments = capture.read_bytes().split(b"\0")
             self.assertIn(payload.encode(), arguments)
+            self.assertEqual(arguments.count(payload.encode()), 2)
             self.assertFalse(marker.exists())
 
     def test_dispatch_validates_before_push(self) -> None:
@@ -272,7 +284,7 @@ with mock.patch("urllib.request.OpenerDirector.open", side_effect=download), \\
                 environment = dict.fromkeys((
                     "ARTIFACT_TEMPLATE", "ARTIFACT_URL", "ASSETS_JSON", "CASK", "CASK_ARTIFACT",
                     "DARWIN_AMD64_SHA256", "DARWIN_ARM64_SHA256", "DESCRIPTION", "LINUX_AMD64_SHA256",
-                    "LINUX_ARM64_SHA256", "LINUX_URL", "MACOS_ARTIFACT", "REQUEST_ID",
+                    "FORMULA_PROFILE", "LINUX_ARM64_SHA256", "LINUX_URL", "MACOS_ARTIFACT", "REQUEST_ID",
                     "SOURCE_TAG_COMMIT", "SOURCE_TAG_OBJECT", "TARGET_ALIASES",
                 ), "")
                 environment.update({
@@ -324,12 +336,15 @@ with mock.patch("urllib.request.OpenerDirector.open", side_effect=download), \\
                     else:
                         self.assertEqual(completed.returncode, 0, completed.stderr)
                         self.assertEqual(formula.read_text(), expected)
-                        self.assertEqual(calls[:5], ["tests", "ruby", "style", "git add Formula/crabbox.rb", "git diff --cached --quiet"])
+                        self.assertEqual(calls[:6], [
+                            "tests", "ruby", "ruby", "style",
+                            "git add Formula/crabbox.rb", "git diff --cached --quiet",
+                        ])
                         if mode == "noop":
-                            self.assertEqual(len(calls), 5)
+                            self.assertEqual(len(calls), 6)
                             self.assertIn("already up to date", completed.stdout)
                         else:
-                            self.assertEqual(calls[5:], [
+                            self.assertEqual(calls[6:], [
                                 "git commit -m crabbox: update formula for v1.2.3",
                                 "gh auth setup-git", "git push origin HEAD:refs/heads/main",
                             ])

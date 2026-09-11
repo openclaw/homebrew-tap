@@ -8,6 +8,10 @@ on:
         description: "Formula name (e.g., gitcrawl)"
         required: true
         type: string
+      formula_profile:
+        description: "Optional tap-owned formula profile (openclaw-facetime)"
+        required: false
+        type: string
       tag:
         description: "Release tag to update formula for"
         required: true
@@ -118,6 +122,7 @@ jobs:
           DARWIN_ARM64_SHA256: ${{ inputs.darwin_arm64_sha256 }}
           DESCRIPTION: ${{ inputs.description }}
           FORMULA: ${{ inputs.formula }}
+          FORMULA_PROFILE: ${{ inputs.formula_profile }}
           LINUX_AMD64_SHA256: ${{ inputs.linux_amd64_sha256 }}
           LINUX_ARM64_SHA256: ${{ inputs.linux_arm64_sha256 }}
           LINUX_URL: ${{ inputs.linux_url }}
@@ -134,6 +139,10 @@ jobs:
             --tag "$TAG"
             --repository "$REPOSITORY"
           )
+
+          if [ -n "$FORMULA_PROFILE" ]; then
+            args+=(--formula-profile "$FORMULA_PROFILE")
+          fi
 
           if [ -n "$ASSETS_JSON" ]; then
             args+=(--assets-json "$ASSETS_JSON")
@@ -204,6 +213,9 @@ jobs:
       - name: Validate update
         run: |
           python3 -m unittest discover -s tests -v
+          for profile in .github/formula-profiles/*.rb; do
+            ruby -c "$profile"
+          done
           for formula in Formula/*.rb; do
             ruby -c "$formula"
           done
@@ -334,6 +346,9 @@ jobs:
 
             git pull --rebase origin "$DEFAULT_BRANCH"
             python3 -m unittest discover -s tests -v
+            for profile in .github/formula-profiles/*.rb; do
+              ruby -c "$profile"
+            done
             for formula in Formula/*.rb; do
               ruby -c "$formula"
             done

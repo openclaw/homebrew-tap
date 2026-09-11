@@ -22,6 +22,7 @@ import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
+from typing import NamedTuple
 
 
 USER_AGENT = "steipete-homebrew-tap-updater"
@@ -39,6 +40,23 @@ CANONICAL_TARGETS = frozenset(("darwin_universal", *RELEASE_TARGETS))
 TEMPLATE_FIELDS = frozenset(("formula", "version", "tag", "target"))
 
 
+class FormulaProfile(NamedTuple):
+    formula: str
+    repository: str
+    artifact: str
+    template: pathlib.Path
+
+
+FORMULA_PROFILES = {
+    "openclaw-facetime": FormulaProfile(
+        formula="openclaw-facetime",
+        repository="openclaw/openclaw-facetime",
+        artifact="openclaw-facetime-macos-arm64.zip",
+        template=pathlib.Path(".github/formula-profiles/openclaw-facetime.rb"),
+    ),
+}
+
+
 def is_crabbox_formula(path: pathlib.Path) -> bool:
     crabbox = pathlib.Path("Formula/crabbox.rb")
     return path.resolve() == crabbox.resolve() or (
@@ -50,6 +68,22 @@ def validate_tap_token(value: str, description: str) -> str:
     if not TAP_TOKEN_PATTERN.fullmatch(value):
         raise SystemExit(f"invalid {description} {value!r}; expected a Homebrew-safe token")
     return value
+
+
+def resolve_formula_profile(value: str, formula: str, repository: str) -> FormulaProfile:
+    validate_tap_token(value, "formula profile")
+    profile = FORMULA_PROFILES.get(value)
+    if profile is None:
+        raise SystemExit(f"unknown formula profile {value!r}")
+    if formula != profile.formula:
+        raise SystemExit(
+            f"formula profile {value!r} requires formula {profile.formula!r}, got {formula!r}"
+        )
+    if repository != profile.repository:
+        raise SystemExit(
+            f"formula profile {value!r} requires repository {profile.repository!r}, got {repository!r}"
+        )
+    return profile
 
 
 def validate_repository(value: str) -> str:
@@ -1078,6 +1112,10 @@ def update_repository_metadata(text: str, repository: str) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--formula", required=True, help="Formula name, e.g. wacli")
+    parser.add_argument(
+        "--formula-profile",
+        help="Allowlisted tap-owned profile used to create or update a specialized formula",
+    )
     parser.add_argument("--tag", required=True, help="Release tag, e.g. v0.7.0")
     parser.add_argument("--repository", required=True, help="Source repository, e.g. steipete/wacli")
     parser.add_argument("--assets-json", help="Exact four-platform asset name/SHA-256 JSON")
@@ -1140,6 +1178,11 @@ def main(argv: list[str] | None = None) -> int:
     args.formula = validate_tap_token(args.formula, "formula")
     args.repository = validate_repository(args.repository)
     args.tag = validate_release_tag(args.tag)
+    formula_profile = (
+        resolve_formula_profile(args.formula_profile, args.formula, args.repository)
+        if args.formula_profile
+        else None
+    )
     if args.cask:
         args.cask = validate_tap_token(args.cask, "cask")
     if args.macos_artifact:
@@ -1165,6 +1208,28 @@ def main(argv: list[str] | None = None) -> int:
         args.source_tag_object,
         args.request_id,
     )
+    if formula_profile is not None:
+        incompatible = [
+            option
+            for option, value in (
+                ("assets", explicit_assets),
+                ("description", args.description),
+                ("macos_artifact", args.macos_artifact),
+                ("linux_url", args.linux_url),
+                ("artifact_template", args.artifact_template),
+                ("artifact_url", args.artifact_url),
+                ("target_aliases", args.target_aliases),
+                ("verified_hashes", verified_hashes),
+                ("cask", args.cask),
+                ("cask_artifact", args.cask_artifact),
+            )
+            if value
+        ]
+        if incompatible:
+            raise SystemExit(
+                "formula-profile mode does not support other artifact contracts: "
+                + ", ".join(incompatible)
+            )
     if verified_hashes is not None:
         if not args.verify_source_tag_only:
             paths = [tap_path("Formula", args.formula)]
@@ -1228,6 +1293,23 @@ def main(argv: list[str] | None = None) -> int:
                 artifact_target,
             )
             validate_artifact_token(artifact, f"artifact for {target}")
+
+    if formula_profile is not None:
+        path = tap_path("Formula", args.formula)
+        source = path if path.exists() else formula_profile.template
+        if not source.is_file():
+            raise SystemExit(f"formula profile template {formula_profile.template} does not exist")
+        url = (
+            f"https://github.com/{formula_profile.repository}/releases/download/"
+            f"{args.tag}/{formula_profile.artifact}"
+        )
+        digest = sha256(url)
+        text = update_top_level_url_and_sha(source.read_text(), url, digest, version)
+        path.write_text(text)
+        verb = "created" if source == formula_profile.template else "updated"
+        print(f"profile: {digest}  {url}")
+        print(f"{verb} {path} to {version}")
+        return 0
 
     if verified_hashes is not None:
         assert args.source_tag_object is not None

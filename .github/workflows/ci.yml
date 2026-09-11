@@ -21,6 +21,9 @@ jobs:
 
       - name: Validate formula syntax
         run: |
+          for profile in .github/formula-profiles/*.rb; do
+            ruby -c "$profile"
+          done
           for formula in Formula/*.rb; do
             ruby -c "$formula"
           done
