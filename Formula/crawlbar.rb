@@ -1,8 +1,8 @@
 class Crawlbar < Formula
   desc "macOS menu bar control plane for local-first crawler CLIs"
   homepage "https://github.com/openclaw/crawlbar"
-  url "https://github.com/openclaw/crawlbar/releases/download/v0.4.1/CrawlBar-v0.4.1-macos.zip"
-  sha256 "5733d7151d0ec45c4d9cab877d3100654a964e57cb0772dc4bc27807d9509a85"
+  url "https://github.com/openclaw/crawlbar/releases/download/v0.4.2/CrawlBar-v0.4.2-macos.zip"
+  sha256 "e9f12f8356d576baea0e2b8fb755443aac4f54b8511b311129cab0a25d016f2c"
   license "MIT"
 
   depends_on macos: :sonoma
