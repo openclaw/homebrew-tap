@@ -9,28 +9,37 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  HOMEBREW_NO_AUTO_UPDATE: "1"
+  HOMEBREW_NO_ANALYTICS: "1"
+
 jobs:
   test:
     runs-on: macos-15
+    timeout-minutes: 20
     steps:
       - name: Checkout tap repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - name: Run updater tests
-        run: python3 -m unittest discover -s tests -v
+      - name: Run automation tests
+        run: python3 -B -m unittest discover -s tests -v
 
-      - name: Validate formula syntax
+      - name: Validate package syntax
         run: |
-          for formula in Formula/*.rb; do
-            ruby -c "$formula"
+          for package in Formula/*.rb Casks/*.rb; do
+            ruby -c "$package"
           done
 
       - name: Validate Homebrew style
-        run: brew style Formula/*.rb
+        run: brew style Formula/*.rb Casks/*.rb
 
       - name: Validate tap on every Homebrew platform
-        env:
-          HOMEBREW_NO_AUTO_UPDATE: "1"
         run: |
           brew tap --custom-remote openclaw/tap "$GITHUB_WORKSPACE"
           brew readall --os=all --arch=all openclaw/tap
