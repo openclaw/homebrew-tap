@@ -88,6 +88,45 @@ class ReconcileFormulaeTest(unittest.TestCase):
                 self.assertEqual(info.name, path.stem)
                 self.assertTrue(info.update_options)
 
+    def test_resources_do_not_control_release_inference_or_get_updated(self) -> None:
+        resource = (
+            '  resource "helper" do\n'
+            '    version "0.9.0"\n'
+            '    url "https://github.com/openclaw/example/releases/download/v0.9.0/helper_darwin_arm64.tar.gz"\n'
+            f'    sha256 "{"f" * 64}"\n'
+            '  end\n'
+        )
+        for nested, comment in ((False, ""), (False, " # helper resource"), (True, ""), (True, " # helper resource")):
+            with self.subTest(nested=nested, comment=comment):
+                candidate_resource = resource.replace("  end\n", f"  end{comment}\n")
+                if nested:
+                    block = "".join("  " + line for line in candidate_resource.splitlines(keepends=True))
+                    original = formula_text().replace("  on_macos do\n", "  on_macos do\n" + block)
+                else:
+                    block = candidate_resource
+                    original = formula_text().replace("  on_macos do\n", block + "  on_macos do\n")
+                directory, root = self.make_tap(original)
+                self.addCleanup(directory.cleanup)
+                path = root / "Formula/example.rb"
+                info = reconcile_formulae.parse_formula(path)
+                self.assertEqual(info.current_tag, "v1.2.3")
+                self.assertEqual(info.update_options, ("--artifact-template", "example_v{version}_{target}.tar.gz"))
+
+                previous = pathlib.Path.cwd()
+                os.chdir(root)
+                try:
+                    with mock.patch.object(reconcile_formulae.update_formula, "sha256", return_value="e" * 64) as download:
+                        self.assertEqual(reconcile_formulae.update_formula.main([
+                            "--formula", info.name, "--repository", info.repository,
+                            "--tag", "v1.2.4", *info.update_options,
+                        ]), 0)
+                    self.assertEqual(download.call_count, 4)
+                    self.assertTrue(all("/v1.2.4/" in call.args[0] for call in download.call_args_list))
+                finally:
+                    os.chdir(previous)
+                self.assertIn(block, path.read_text())
+                self.assertIn('version "1.2.4"', path.read_text())
+
     def test_ocm_reconciliation_preserves_three_targets_and_installed_binary_policy(self) -> None:
         original = (ROOT / "Formula" / "ocm.rb").read_text()
         info = reconcile_formulae.parse_formula(ROOT / "Formula" / "ocm.rb")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 
 
 RELEASE_TARGETS = ("darwin_amd64", "darwin_arm64", "linux_amd64", "linux_arm64")
@@ -20,20 +21,22 @@ def ruby_string(value: str) -> str:
 
 
 def replace_once(text: str, pattern: str, replacement: str, description: str) -> str:
-    matches = re.findall(pattern, text, flags=re.MULTILINE | re.DOTALL)
+    matches = primary_matches(text, re.finditer(pattern, text, flags=re.MULTILINE | re.DOTALL))
     if len(matches) != 1:
         raise SystemExit(f"expected exactly one {description}, found {len(matches)}")
-    return re.sub(pattern, replacement, text, count=1, flags=re.MULTILINE | re.DOTALL)
+    match = matches[0]
+    return text[:match.start()] + match.expand(replacement) + text[match.end():]
 
 
 def replace_zero_or_one(text: str, pattern: str, replacement: str, description: str) -> str:
-    matches = re.findall(pattern, text, flags=re.MULTILINE | re.DOTALL)
+    matches = primary_matches(text, re.finditer(pattern, text, flags=re.MULTILINE | re.DOTALL))
     if len(matches) > 1:
         raise SystemExit(f"expected at most one {description}, found {len(matches)}")
     if not matches:
         print(f"no explicit {description}; leaving it unchanged")
         return text
-    return re.sub(pattern, replacement, text, count=1, flags=re.MULTILINE | re.DOTALL)
+    match = matches[0]
+    return text[:match.start()] + match.expand(replacement) + text[match.end():]
 
 
 def target_markers(target: str, alias: str | None = None) -> tuple[str, ...]:
@@ -74,16 +77,21 @@ def iter_url_sha_pairs(text: str) -> list[re.Match[str]]:
     )
 
 
-def iter_primary_url_sha_pairs(text: str) -> list[re.Match[str]]:
+def primary_matches(text: str, matches: Iterable[re.Match[str]]) -> list[re.Match[str]]:
+    """Exclude resource stanzas while retaining offsets into the original formula."""
     resources = list(re.finditer(
-        r'^(?P<indent>[ \t]+)resource [^\n]+\n.*?^(?P=indent)end(?:[ \t]*\n|$)',
+        r'^(?P<indent>[ \t]+)resource [^\n]+\n.*?^(?P=indent)end[ \t]*(?:#[^\n]*)?(?:\n|$)',
         text,
         re.MULTILINE | re.DOTALL,
     ))
     return [
-        pair for pair in iter_url_sha_pairs(text)
-        if not any(resource.start() <= pair.start() < resource.end() for resource in resources)
+        match for match in matches
+        if not any(resource.start() <= match.start() < resource.end() for resource in resources)
     ]
+
+
+def iter_primary_url_sha_pairs(text: str) -> list[re.Match[str]]:
+    return primary_matches(text, iter_url_sha_pairs(text))
 
 
 def stanza_body(text: str, stanza: str) -> str | None:
@@ -121,7 +129,7 @@ def replace_url_preserving_interpolation(
     version: str,
     description: str,
 ) -> str:
-    matches = list(re.finditer(pattern, text, flags=re.MULTILINE | re.DOTALL))
+    matches = primary_matches(text, re.finditer(pattern, text, flags=re.MULTILINE | re.DOTALL))
     if len(matches) != 1:
         raise SystemExit(f"expected exactly one {description}, found {len(matches)}")
 

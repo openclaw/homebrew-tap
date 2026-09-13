@@ -131,6 +131,8 @@ and [gh shim migration to Octopool](https://gitcrawl.sh/gh-shim/).
 it derives each source repository from the formula's GitHub `homepage`, compares the formula with that repository's latest
 stable published release, and runs the same updater and checksum-download logic when the release is
 newer. Invalid formula metadata is reported and skipped so later formulae are still inspected.
+Resource URLs are excluded from release inference, including resources from the same
+source repository; their pinned versions and checksums remain unchanged.
 It never downgrades, skips drafts and prereleases, and makes no commit when every formula is
 current. Manual reconciles default to dry-run and can target one formula. The reconciler reads public
 release metadata and pushes with this tap's own `GITHUB_TOKEN`; it needs no cross-repository token or
