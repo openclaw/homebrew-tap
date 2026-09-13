@@ -35,7 +35,6 @@ HOMEPAGE_PATTERN = re.compile(
     re.MULTILINE,
 )
 VERSION_PATTERN = re.compile(r'^\s*version\s+"([^"]+)"\s*$', re.MULTILINE)
-FORMULA_PATTERN = re.compile(r"[a-z0-9][a-z0-9+@._-]*")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -139,7 +138,6 @@ def marker_for_target(asset: str, target: str) -> str:
 def infer_update_options(
     text: str,
     repository: str,
-    formula: str,
     current_tag: str,
     version: str,
 ) -> tuple[str, ...]:
@@ -223,7 +221,6 @@ def parse_formula(path: pathlib.Path) -> FormulaInfo:
         update_options = infer_update_options(
             text,
             repository,
-            path.stem,
             current_tag,
             version_text,
         )
@@ -317,7 +314,7 @@ def run_update(root: pathlib.Path, info: FormulaInfo, latest_tag: str, dry_run: 
 
 def formula_paths(root: pathlib.Path, selected: str | None) -> list[pathlib.Path]:
     if selected:
-        if not FORMULA_PATTERN.fullmatch(selected):
+        if not update_formula.TAP_TOKEN_PATTERN.fullmatch(selected):
             raise ValueError(f"invalid formula {selected!r}")
         path = root / "Formula" / f"{selected}.rb"
         if not path.is_file():

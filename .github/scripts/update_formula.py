@@ -447,27 +447,8 @@ def iter_primary_url_sha_pairs(text: str) -> list[re.Match[str]]:
 
 
 def stanza_body(text: str, stanza: str) -> str | None:
-    match = re.search(
-        rf'^\s*{stanza}\s+do\s*$\n(?P<body>.*?)(?=^\s*(?:on_macos\s+do|on_linux\s+do|resource\s+|head |def |test do))',
-        text,
-        flags=re.MULTILINE | re.DOTALL,
-    )
-    if not match:
-        return None
-    return match.group("body")
-
-
-def require_single_sha_in_stanza(text: str, stanza: str) -> None:
-    body = stanza_body(text, stanza)
-    if body is None:
-        return
-
-    checksums = re.findall(r'^\s*sha256\s+"[^"]+"', body, flags=re.MULTILINE)
-    if len(checksums) != 1:
-        raise SystemExit(
-            f"expected exactly one sha256 in {stanza} stanza, found {len(checksums)}; "
-            "formulae with multiple architecture-specific checksums need manual updates"
-        )
+    match = stanza_match(text, stanza)
+    return match.group("body") if match else None
 
 
 def stanza_url_shape_count(text: str, stanza: str, version: str) -> int:
@@ -659,21 +640,16 @@ def predicate_architecture(line: str) -> str | None:
     return None
 
 
-def update_verified_stanza(
+def update_target_stanza(
     text: str,
     stanza: str,
-    repository: str,
-    tag: str,
-    formula: str,
-    version: str,
-    template: str,
-    target_aliases: dict[str, str],
-    hashes: dict[str, str],
+    assets: dict[str, tuple[str, str]],
+    mode: str,
 ) -> str:
     matches = list(re.finditer(rf"^  {stanza} do$", text, flags=re.MULTILINE))
     match = stanza_match(text, stanza)
     if len(matches) != 1 or match is None:
-        raise SystemExit(f"verified-hash mode requires exactly one {stanza} stanza")
+        raise SystemExit(f"{mode} requires exactly one {stanza} stanza")
 
     prefix = "darwin" if stanza == "on_macos" else "linux"
     lines = match.group("body").splitlines(keepends=True)
@@ -690,7 +666,7 @@ def update_verified_stanza(
             continue
         if re.fullmatch(r"    else\n?", lines[index]):
             if conditional_architecture is None:
-                raise SystemExit(f"verified-hash mode found an unmatched else in {stanza}")
+                raise SystemExit(f"{mode} found an unmatched else in {stanza}")
             current_architecture = "amd64" if conditional_architecture == "arm64" else "arm64"
             index += 1
             continue
@@ -705,92 +681,25 @@ def update_verified_stanza(
             index += 1
             continue
         if current_architecture is None or index + 1 >= len(lines):
-            raise SystemExit(f"verified-hash mode could not bind a {stanza} URL to an architecture predicate")
+            raise SystemExit(f"{mode} could not bind a {stanza} URL to an architecture predicate")
         sha_match = re.fullmatch(r'(\s+)sha256 "[0-9a-f]+"\n?', lines[index + 1])
         if not sha_match or sha_match.group(1) != url_match.group(1):
-            raise SystemExit(f"verified-hash mode requires adjacent URL/checksum pairs in {stanza}")
+            raise SystemExit(f"{mode} requires adjacent URL/checksum pairs in {stanza}")
 
         target = f"{prefix}_{current_architecture}"
         if target in seen_targets:
-            raise SystemExit(f"verified-hash mode found duplicate {target} URL/checksum pairs")
+            raise SystemExit(f"{mode} found duplicate {target} URL/checksum pairs")
         newline = "\n" if lines[index].endswith("\n") else ""
         indentation = url_match.group(1)
-        url = interpolated_target_url(
-            repository, tag, formula, version, template, target_aliases, target
-        )
+        url, digest = assets[target]
         lines[index] = f'{indentation}url "{url}"{newline}'
-        lines[index + 1] = f'{indentation}sha256 "{hashes[target]}"{newline}'
+        lines[index + 1] = f'{indentation}sha256 "{digest}"{newline}'
         seen_targets.add(target)
         index += 2
 
     expected_targets = {f"{prefix}_arm64", f"{prefix}_amd64"}
     if seen_targets != expected_targets:
-        raise SystemExit(f"verified-hash mode requires exact arm64 and amd64 pairs in {stanza}")
-    body = "".join(lines)
-    return text[: match.start("body")] + body + text[match.end("body") :]
-
-
-def update_explicit_stanza(
-    text: str,
-    stanza: str,
-    repository: str,
-    tag: str,
-    assets: dict[str, dict[str, str]],
-) -> str:
-    matches = list(re.finditer(rf"^  {stanza} do$", text, flags=re.MULTILINE))
-    match = stanza_match(text, stanza)
-    if len(matches) != 1 or match is None:
-        raise SystemExit(f"explicit-assets mode requires exactly one {stanza} stanza")
-
-    prefix = "darwin" if stanza == "on_macos" else "linux"
-    lines = match.group("body").splitlines(keepends=True)
-    current_architecture: str | None = None
-    conditional_architecture: str | None = None
-    seen_targets: set[str] = set()
-    index = 0
-    while index < len(lines):
-        architecture = predicate_architecture(lines[index])
-        if architecture:
-            current_architecture = architecture
-            conditional_architecture = architecture
-            index += 1
-            continue
-        if re.fullmatch(r"    else\n?", lines[index]):
-            if conditional_architecture is None:
-                raise SystemExit(f"explicit-assets mode found an unmatched else in {stanza}")
-            current_architecture = "amd64" if conditional_architecture == "arm64" else "arm64"
-            index += 1
-            continue
-        if re.fullmatch(r"    end\n?", lines[index]):
-            current_architecture = None
-            conditional_architecture = None
-            index += 1
-            continue
-
-        url_match = re.fullmatch(r'(\s+)url "[^"]+"\n?', lines[index])
-        if not url_match:
-            index += 1
-            continue
-        if current_architecture is None or index + 1 >= len(lines):
-            raise SystemExit(f"explicit-assets mode could not bind a {stanza} URL to an architecture predicate")
-        sha_match = re.fullmatch(r'(\s+)sha256 "[0-9a-f]+"\n?', lines[index + 1])
-        if not sha_match or sha_match.group(1) != url_match.group(1):
-            raise SystemExit(f"explicit-assets mode requires adjacent URL/checksum pairs in {stanza}")
-
-        target = f"{prefix}_{current_architecture}"
-        if target in seen_targets:
-            raise SystemExit(f"explicit-assets mode found duplicate {target} URL/checksum pairs")
-        item = assets[target]
-        newline = "\n" if lines[index].endswith("\n") else ""
-        indentation = url_match.group(1)
-        lines[index] = f'{indentation}url "{explicit_asset_url(repository, tag, item["name"])}"{newline}'
-        lines[index + 1] = f'{indentation}sha256 "{item["sha256"]}"{newline}'
-        seen_targets.add(target)
-        index += 2
-
-    expected_targets = {f"{prefix}_arm64", f"{prefix}_amd64"}
-    if seen_targets != expected_targets:
-        raise SystemExit(f"explicit-assets mode requires exact arm64 and amd64 pairs in {stanza}")
+        raise SystemExit(f"{mode} requires exact arm64 and amd64 pairs in {stanza}")
     body = "".join(lines)
     return text[: match.start("body")] + body + text[match.end("body") :]
 
@@ -945,28 +854,15 @@ def render_verified_target_formula(
 ) -> str:
     text = update_repository_metadata(text, repository)
     text = update_version(text, version)
-    text = update_verified_stanza(
-        text,
-        "on_macos",
-        repository,
-        tag,
-        formula,
-        version,
-        template,
-        target_aliases,
-        hashes,
-    )
-    text = update_verified_stanza(
-        text,
-        "on_linux",
-        repository,
-        tag,
-        formula,
-        version,
-        template,
-        target_aliases,
-        hashes,
-    )
+    assets = {
+        target: (
+            interpolated_target_url(repository, tag, formula, version, template, target_aliases, target),
+            hashes[target],
+        )
+        for target in RELEASE_TARGETS
+    }
+    for stanza in ("on_macos", "on_linux"):
+        text = update_target_stanza(text, stanza, assets, "verified-hash mode")
 
     version_lines = re.findall(r"^\s*version(?:\s|$).*$", text, flags=re.MULTILINE)
     if version_lines and version_lines != [f'  version "{version}"']:
@@ -1000,8 +896,12 @@ def render_explicit_target_formula(
 ) -> str:
     text = update_repository_metadata(text, repository)
     text = update_version(text, version)
-    text = update_explicit_stanza(text, "on_macos", repository, tag, assets)
-    text = update_explicit_stanza(text, "on_linux", repository, tag, assets)
+    target_assets = {
+        target: (explicit_asset_url(repository, tag, item["name"]), item["sha256"])
+        for target, item in assets.items()
+    }
+    for stanza in ("on_macos", "on_linux"):
+        text = update_target_stanza(text, stanza, target_assets, "explicit-assets mode")
     actual_pairs = sorted(
         (match.group("url").replace("#{version}", version), match.group("sha"))
         for stanza in ("on_macos", "on_linux")
