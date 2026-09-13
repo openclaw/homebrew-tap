@@ -1456,6 +1456,31 @@ end
         self.assertIn('sha256 "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"', updated)
         self.assertIn("CodexBar-macos-universal-#{version}.zip", updated)
 
+    def test_single_archive_update_preserves_resource_metadata(self) -> None:
+        resource = (
+            '  resource "helper" do\n'
+            '    version "0.9.0"\n'
+            '    url "https://example.org/helper.tar.gz"\n'
+            f'    sha256 "{"f" * 64}"\n'
+            '  end # helper resource\n'
+        )
+        original = (
+            'class Example < Formula\n'
+            + resource
+            + '  version "1.2.2"\n'
+            '  url "https://example.org/example-#{version}.tar.gz"\n'
+            f'  sha256 "{"a" * 64}"\n'
+            'end\n'
+        )
+        updated = update_formula.formula_text.update_version(original, "1.2.3")
+        updated = update_formula.formula_text.update_top_level_url_and_sha(
+            updated, "https://example.org/example-1.2.3.tar.gz", "b" * 64, "1.2.3",
+        )
+        self.assertIn(resource, updated)
+        self.assertIn('  version "1.2.3"', updated)
+        self.assertIn('  sha256 "' + 'b' * 64, updated)
+        self.assertIn('  url "https://example.org/example-#{version}.tar.gz"', updated)
+
     def test_sha256_download_budget_is_documented(self) -> None:
         self.assertEqual(update_formula.DOWNLOAD_TIMEOUT_SECONDS, 30)
 

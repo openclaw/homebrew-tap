@@ -117,7 +117,7 @@ def parse_semver(value: str) -> SemanticVersion:
 def source_release_urls(text: str, repository: str, version: str) -> list[tuple[str, str]]:
     prefix = f"https://github.com/{repository}/releases/download/"
     urls: list[tuple[str, str]] = []
-    for pair in formula_text.iter_url_sha_pairs(text):
+    for pair in formula_text.iter_primary_url_sha_pairs(text):
         url = pair.group("url").replace("#{version}", version)
         if not url.lower().startswith(prefix.lower()):
             continue
@@ -194,12 +194,16 @@ def infer_update_options(
 
 def parse_formula(path: pathlib.Path) -> FormulaInfo:
     text = path.read_text()
-    homepages = HOMEPAGE_PATTERN.findall(text)
+    homepages = [
+        match.group(1) for match in formula_text.primary_matches(text, HOMEPAGE_PATTERN.finditer(text))
+    ]
     if len(homepages) != 1:
         raise ValueError(f"expected one GitHub homepage, found {len(homepages)}")
     repository = homepages[0]
 
-    versions = VERSION_PATTERN.findall(text)
+    versions = [
+        match.group(1) for match in formula_text.primary_matches(text, VERSION_PATTERN.finditer(text))
+    ]
     if len(versions) > 1:
         raise ValueError(f"expected at most one formula version, found {len(versions)}")
     explicit_version = versions[0] if versions else None
