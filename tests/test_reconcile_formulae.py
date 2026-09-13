@@ -98,7 +98,7 @@ class ReconcileFormulaeTest(unittest.TestCase):
             for target in targets
         ]
         expected = original.replace(f'version "{info.current_tag[1:]}"', f'version "{newer[1:]}"')
-        for pair in reconcile_formulae.update_formula.iter_url_sha_pairs(original):
+        for pair in reconcile_formulae.update_formula.formula_text.iter_url_sha_pairs(original):
             url = pair.group("url").replace(f"/{info.current_tag}/", f"/{newer}/")
             self.assertIn(url, urls)
             expected = expected.replace(pair.group("url"), url).replace(
@@ -107,7 +107,7 @@ class ReconcileFormulaeTest(unittest.TestCase):
 
         download_order = [
             pair.group("url").replace(f"/{info.current_tag}/", f"/{newer}/")
-            for pair in reconcile_formulae.update_formula.iter_url_sha_pairs(original)
+            for pair in reconcile_formulae.update_formula.formula_text.iter_url_sha_pairs(original)
         ]
         self.assertCountEqual(download_order, urls)
         for dry_run in (False, True):
@@ -234,8 +234,8 @@ class ReconcileFormulaeTest(unittest.TestCase):
                             self.assertEqual(update.call_count, 1)
                             self.assertEqual(len(downloads), 4)
                             expected = original
-                            for match in reconcile_formulae.update_formula.iter_url_sha_pairs(original):
-                                target = reconcile_formulae.update_formula.classify_target(match.group("url"), {}, info.current_tag[1:])
+                            for match in reconcile_formulae.update_formula.formula_text.iter_url_sha_pairs(original):
+                                target = reconcile_formulae.update_formula.formula_text.classify_target(match.group("url"), {}, info.current_tag[1:])
                                 url = next(url for url in downloads if url.endswith(f"_{target}.tar.gz"))
                                 expected = expected.replace(match.group("url"), url).replace(
                                     match.group("sha"), hashlib.sha256(url.encode()).hexdigest(),
