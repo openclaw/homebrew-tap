@@ -86,7 +86,7 @@ class UpdateFormulaTest(unittest.TestCase):
                     update_formula,
                     sha256=mock.DEFAULT,
                     verify_remote_source_tag=mock.DEFAULT,
-                    update_cask=mock.DEFAULT,
+                    prepare_cask_update=mock.DEFAULT,
                 ) as operations,
                 mock.patch.object(update_formula.formula_text, "seed_formula") as seed,
                 mock.patch.object(update_formula.urllib.request.OpenerDirector, "open") as network,
@@ -222,7 +222,7 @@ class UpdateFormulaTest(unittest.TestCase):
                         try:
                             with (
                                 mock.patch.object(update_formula.urllib.request.OpenerDirector, "open", side_effect=download) as network,
-                                mock.patch.object(update_formula, "update_cask") as cask,
+                                mock.patch.object(update_formula, "prepare_cask_update") as cask,
                                 self.assertRaisesRegex(
                                     (SystemExit, urllib.error.HTTPError),
                                     "SHA-256 mismatch|404|must contain exactly",
@@ -276,7 +276,7 @@ class UpdateFormulaTest(unittest.TestCase):
                         mock.patch.object(update_formula, "verify_remote_source_tag") as verify_tag,
                         mock.patch.object(update_formula, "sha256") as download,
                         mock.patch.object(update_formula.formula_text, "seed_formula") as seed,
-                        mock.patch.object(update_formula, "update_cask") as cask,
+                        mock.patch.object(update_formula, "prepare_cask_update") as cask,
                         mock.patch.object(pathlib.Path, "write_text") as write,
                     ):
                         self.assertEqual(update_formula.main(crabbox_arguments("verified-hashes") + ["--verify-source-tag-only"]), 0)

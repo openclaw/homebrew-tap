@@ -4,6 +4,7 @@
 
 **Highlights:** Restore normal tap installation for every package, install OCM and Peekaboo, and recover release updates without publishing partial formulae.
 
+- Preserve both files when a combined formula/cask update fails during input validation, download, or rendering.
 - Fix `brew tap openclaw/tap` rejecting the entire tap when validating OCM on Linux ARM64; retain the Linux x86_64 installation requirement and validate all Homebrew platforms in CI; thanks @jandubois.
 - Update OCM to v0.2.45 for macOS ARM64/Intel and Linux x86_64, including environment artifact exports, stopped-session recovery, environment-variable UI paths, and safer environment roots. Preserve signed release binaries; use `brew upgrade openclaw/tap/ocm`.
 - Add the Peekaboo universal macOS formula, update it to 4.3.2, and match its v4 help header in the installed smoke test.

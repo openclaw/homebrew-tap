@@ -119,7 +119,9 @@ preserves that content while changing release metadata. In legacy multi-target m
 `linux_url` refreshes both the matching GitHub source-archive URL and its checksum. Maintain
 formula-specific content here rather than in an upstream release workflow. Newly generated
 formulae remain in memory until all required checksum downloads and rendering succeed, so
-failed creation leaves no placeholder file.
+failed creation leaves no placeholder file. Combined formula/cask updates also finish
+all downloads and rendering before writing either file, so a missing or invalid cask
+leaves the formula unchanged.
 For Gitcrawl, see the [configuration reference](https://gitcrawl.sh/configuration/)
 and [gh shim migration to Octopool](https://gitcrawl.sh/gh-shim/).
 
