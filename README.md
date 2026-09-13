@@ -140,8 +140,10 @@ preserves the published executable bytes, including the macOS Developer ID signa
 Changes to the OCM formula or its updater run installed-Homebrew tests on macOS ARM64,
 macOS x86_64, and Linux x86_64, using the checked-out formula rather than the public tap.
 
-Pull requests and updates to `main` run the updater and reconciler tests and validate every formula's
-Ruby syntax. They also load the checked-out tap on every Homebrew OS/architecture combination,
+Pull requests and updates to `main` run the automation tests and validate Ruby syntax
+and Homebrew style for every formula and cask. Superseded pull-request validation runs
+are canceled, while main-branch checks finish independently. They also load the checked-out
+tap on every Homebrew OS/architecture combination,
 including unsupported installation targets. Formulae must always define a URL; use an architecture
 requirement to reject unsupported installs rather than leaving platform metadata empty.
 
