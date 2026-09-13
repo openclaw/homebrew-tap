@@ -372,21 +372,40 @@ def parse_target_aliases(value: str | None) -> dict[str, str]:
     return aliases
 
 
-def update_cask(cask: str, repository: str, tag: str, artifact: str) -> None:
+def prepare_cask_update(cask: str, repository: str, tag: str, artifact: str) -> tuple[pathlib.Path, str]:
     validate_artifact_token(artifact, "cask artifact")
     version = tag[1:] if tag.startswith("v") else tag
     url = f"https://github.com/{repository}/releases/download/{tag}/{artifact}"
-    digest = sha256(url)
     path = tap_path("Casks", cask)
     if not path.exists():
         raise SystemExit(f"{path} does not exist; cask creation needs a manual template")
 
     text = path.read_text()
+    digest = sha256(url)
     text = formula_text.update_version(text, version)
     text = formula_text.update_top_level_url_and_sha(text, url, digest, version)
-    path.write_text(text)
     print(f"cask: {digest}  {url}")
-    print(f"updated {path} to {version}")
+    return path, text
+
+
+def write_formula_and_cask(
+    path: pathlib.Path,
+    text: str,
+    repository: str,
+    tag: str,
+    cask: str | None,
+    cask_artifact: str | None,
+) -> None:
+    updates = [(path, text)]
+    if cask:
+        assert cask_artifact is not None
+        updates.append(prepare_cask_update(cask, repository, tag, cask_artifact))
+
+    # Complete downloads and rendering for both files before changing either one.
+    for target, content in updates:
+        target.write_text(content)
+    if cask:
+        print(f"updated {updates[1][0]} to {tag.removeprefix('v')}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -530,6 +549,10 @@ def main(argv: list[str] | None = None) -> int:
     version = args.tag[1:] if args.tag.startswith("v") else args.tag
     if args.cask and not args.cask_artifact:
         raise SystemExit("--cask-artifact is required when --cask is set")
+    cask_artifact = None
+    if args.cask_artifact:
+        cask_artifact = format_template(args.cask_artifact, args.formula, version, args.tag)
+        validate_artifact_token(cask_artifact, "cask artifact")
     target_aliases = parse_target_aliases(args.target_aliases)
     if args.artifact_template:
         for target in RELEASE_TARGETS:
@@ -600,19 +623,9 @@ def main(argv: list[str] | None = None) -> int:
                 for target, item in explicit_assets.items()
             },
         )
-        path.write_text(text)
+        write_formula_and_cask(path, text, args.repository, args.tag, args.cask, cask_artifact)
         print(f"updated {path} to {version} from exact verified release assets")
-        if args.cask:
-            assert args.cask_artifact is not None
-            cask_artifact = format_template(args.cask_artifact, args.formula, version, args.tag)
-            validate_artifact_token(cask_artifact, "cask artifact")
-            update_cask(args.cask, args.repository, args.tag, cask_artifact)
         return 0
-
-    cask_artifact = None
-    if args.cask_artifact:
-        cask_artifact = format_template(args.cask_artifact, args.formula, version, args.tag)
-        validate_artifact_token(cask_artifact, "cask artifact")
 
     macos_artifact = args.macos_artifact or f"{args.formula}-macos-universal.tar.gz"
     validate_artifact_token(macos_artifact, "macOS artifact")
@@ -740,13 +753,10 @@ def main(argv: list[str] | None = None) -> int:
         if linux_sha:
             print(f"Linux: {linux_sha}  {linux_url}")
 
-    path.write_text(text)
+    write_formula_and_cask(path, text, args.repository, args.tag, args.cask, cask_artifact)
     if created:
         print(f"created {path}")
     print(f"updated {path} to {version}")
-    if args.cask:
-        assert cask_artifact is not None
-        update_cask(args.cask, args.repository, args.tag, cask_artifact)
     return 0
 
 
