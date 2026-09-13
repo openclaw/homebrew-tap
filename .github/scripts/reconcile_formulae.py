@@ -19,6 +19,7 @@ import urllib.request
 from collections.abc import Callable
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import formula_text
 import update_formula
 
 
@@ -116,7 +117,7 @@ def parse_semver(value: str) -> SemanticVersion:
 def source_release_urls(text: str, repository: str, version: str) -> list[tuple[str, str]]:
     prefix = f"https://github.com/{repository}/releases/download/"
     urls: list[tuple[str, str]] = []
-    for pair in update_formula.iter_url_sha_pairs(text):
+    for pair in formula_text.iter_url_sha_pairs(text):
         url = pair.group("url").replace("#{version}", version)
         if not url.lower().startswith(prefix.lower()):
             continue
@@ -129,7 +130,7 @@ def source_release_urls(text: str, repository: str, version: str) -> list[tuple[
 
 
 def marker_for_target(asset: str, target: str) -> str:
-    matches = [marker for marker in update_formula.target_markers(target) if marker in asset]
+    matches = [marker for marker in formula_text.target_markers(target) if marker in asset]
     if not matches:
         raise ValueError(f"cannot identify the {target} marker in {asset!r}")
     return matches[0]
@@ -166,7 +167,7 @@ def infer_update_options(
     for tag, asset in release_urls:
         if tag != current_tag:
             raise ValueError(f"release URL tag {tag!r} does not match current tag {current_tag!r}")
-        target = update_formula.classify_target(asset, {}, version)
+        target = formula_text.classify_target(asset, {}, version)
         if target not in update_formula.RELEASE_TARGETS:
             raise ValueError(f"cannot classify release asset {asset!r}")
         if target in targets:

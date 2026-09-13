@@ -218,7 +218,8 @@ class WorkflowSecurityTest(unittest.TestCase):
                 root = pathlib.Path(directory)
                 scripts = root / ".github" / "scripts"
                 scripts.mkdir(parents=True)
-                (scripts / "update_formula.py").write_bytes((ROOT / ".github" / "scripts" / "update_formula.py").read_bytes())
+                for source in (ROOT / ".github" / "scripts").glob("*.py"):
+                    (scripts / source.name).write_bytes(source.read_bytes())
                 (root / "Formula").mkdir()
                 formula = root / "Formula" / "crabbox.rb"
                 before = expected if mode == "noop" else original

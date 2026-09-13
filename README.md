@@ -69,6 +69,24 @@ brew uninstall --cask --zap openclaw/tap/<name>
 
 ## Maintainers
 
+### Local validation and code layout
+
+The automation uses Python's standard library and Homebrew's Ruby tooling:
+
+```bash
+python3 -B -m unittest discover -s tests -v
+brew style Formula/*.rb Casks/*.rb
+brew ruby tests/test_ocm_platforms.rb
+```
+
+`update_formula.py` owns command validation, downloads, source-tag verification and
+file writes. `formula_text.py` parses and renders formula text without network or
+filesystem access. `reconcile_formulae.py` discovers release drift and invokes the
+updater. These scripts live in `.github/scripts/`; formula-specific installation
+behavior stays in `Formula/*.rb`.
+
+### Release dispatch
+
 Formula updates have two automated paths. Source-repository release workflows dispatch
 `Update Formula` for immediate updates. That workflow accepts a Homebrew formula token, a semantic release tag, and a
 GitHub repository in `owner/repo` form. Optional artifact inputs must resolve to HTTPS release
@@ -105,6 +123,8 @@ failed creation leaves no placeholder file.
 For Gitcrawl, see the [configuration reference](https://gitcrawl.sh/configuration/)
 and [gh shim migration to Octopool](https://gitcrawl.sh/gh-shim/).
 
+### Reconciliation
+
 `Reconcile Formulae` is the self-healing fallback for formulae. Every three hours
 it derives each source repository from the formula's GitHub `homepage`, compares the formula with that repository's latest
 stable published release, and runs the same updater and checksum-download logic when the release is
@@ -124,6 +144,8 @@ Pull requests and updates to `main` run the updater and reconciler tests and val
 Ruby syntax. They also load the checked-out tap on every Homebrew OS/architecture combination,
 including unsupported installation targets. Formulae must always define a URL; use an architecture
 requirement to reject unsupported installs rather than leaving platform metadata empty.
+
+### Asset handoff contracts
 
 Fleet release workflows use the optional `assets` JSON contract: exactly one `name` and `sha256`
 for each Darwin/Linux amd64/arm64 target. The updater renders those names and hashes verbatim,
