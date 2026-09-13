@@ -30,10 +30,7 @@ class Peekaboo < Formula
   end
 
   test do
-    # Test that the binary runs and returns version
     assert_match "Peekaboo", shell_output("#{bin}/peekaboo --version")
-
-    # Test help command
     assert_match(/\AUsage\n\s+peekaboo\b/, shell_output("#{bin}/peekaboo --help"))
   end
 end

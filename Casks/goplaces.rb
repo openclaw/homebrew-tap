@@ -3,29 +3,28 @@ cask "goplaces" do
   version "0.4.9"
 
   on_macos do
-    on_intel do
-      sha256 "35ad4e631306f1654b3bb5faa13067c1cb4dfcfc6271d75ff51d55abea1a288e"
-      url "https://github.com/openclaw/goplaces/releases/download/v#{version}/goplaces_#{version}_darwin_amd64.tar.gz"
-    end
     on_arm do
       sha256 "8c133880df665101777cfb6e395f1336521870980c1866584076e9db2978250a"
       url "https://github.com/openclaw/goplaces/releases/download/v#{version}/goplaces_#{version}_darwin_arm64.tar.gz"
     end
-  end
-
-  on_linux do
     on_intel do
-      sha256 "e7d5db4927c2da8cc443016120a02fdd8062391644715b2df32f7870722ea4ac"
-      url "https://github.com/openclaw/goplaces/releases/download/v#{version}/goplaces_#{version}_linux_amd64.tar.gz"
+      sha256 "35ad4e631306f1654b3bb5faa13067c1cb4dfcfc6271d75ff51d55abea1a288e"
+      url "https://github.com/openclaw/goplaces/releases/download/v#{version}/goplaces_#{version}_darwin_amd64.tar.gz"
     end
+  end
+  on_linux do
     on_arm do
       sha256 "a83e1c0612f7f18bfc93cb2ac1174b553609c2f6159ae97037df3a12a362a4e1"
       url "https://github.com/openclaw/goplaces/releases/download/v#{version}/goplaces_#{version}_linux_arm64.tar.gz"
     end
+    on_intel do
+      sha256 "e7d5db4927c2da8cc443016120a02fdd8062391644715b2df32f7870722ea4ac"
+      url "https://github.com/openclaw/goplaces/releases/download/v#{version}/goplaces_#{version}_linux_amd64.tar.gz"
+    end
   end
 
   name "goplaces"
-  desc "Modern Go client + CLI for the Google Places API (New)."
+  desc "Modern Go client + CLI for the Google Places API (New)"
   homepage "https://github.com/openclaw/goplaces"
 
   livecheck do
@@ -33,7 +32,4 @@ cask "goplaces" do
   end
 
   binary "goplaces"
-
-  # No zap stanza required
-
 end
