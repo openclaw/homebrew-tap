@@ -161,7 +161,8 @@ Other four-target binary releases can use the workflow's `verified-hashes-v1` co
 canonical target SHA-256 inputs, `source_tag_object`, `source_tag_commit`, and `request_id` with an
 explicit `{target}` artifact template. This mode requires an existing formula, checks that the live
 source ref is the supplied annotated tag object and peeled commit, renders the target URL/checksum
-pairs directly from the supplied hashes, and never downloads release assets to recompute them.
+pairs as literal release URLs directly from the supplied hashes, and never downloads release assets to recompute them.
+Literal URLs also let Homebrew infer the version when the formula omits a redundant explicit version line.
 Partial or mixed legacy/verified input sets fail closed. The source repository remains responsible
 for verifying the public release bytes immediately before dispatch and again after the tap update,
 including its clean downstream Homebrew install proof. Each source-tag `git fetch` and

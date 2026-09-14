@@ -863,11 +863,32 @@ end
         self.assertIn("Hardware::CPU.intel? && Hardware::CPU.is_64_bit?", updated)
         for target, digest in hashes.items():
             self.assertIn(
-                f'url "https://github.com/openclaw/example/releases/download/v#{{version}}/'
-                f'example_#{{version}}_{target}.tar.gz"\n      sha256 "{digest}"',
+                f'url "https://github.com/openclaw/example/releases/download/v1.2.3/'
+                f'example_1.2.3_{target}.tar.gz"\n      sha256 "{digest}"',
                 updated,
             )
             self.assertEqual(updated.count(digest), 1)
+
+    def test_verified_hash_mode_keeps_url_derived_versions_loadable(self) -> None:
+        hashes = {target: "a" * 64 for target in update_formula.RELEASE_TARGETS}
+        updated = update_formula.formula_text.render_verified_target_formula(
+            platform_install_formula(), "openclaw/example", "v2.3.4", "example", "2.3.4",
+            "{formula}_{version}_{target}.tar.gz", {}, hashes,
+        )
+        self.assertNotIn("#{version}", updated)
+        self.assertNotRegex(updated, r"(?m)^\s*version ")
+        for target in hashes:
+            self.assertIn(
+                f'url "https://github.com/openclaw/example/releases/download/v2.3.4/example_2.3.4_{target}.tar.gz"',
+                updated,
+            )
+        self.assertEqual(
+            update_formula.formula_text.render_verified_target_formula(
+                updated, "openclaw/example", "v2.3.4", "example", "2.3.4",
+                "{formula}_{version}_{target}.tar.gz", {}, hashes,
+            ),
+            updated,
+        )
 
     def test_verified_hash_mode_preserves_formula_specific_install_blocks(self) -> None:
         formula = platform_install_formula()
@@ -894,7 +915,7 @@ end
         self.assertEqual(updated.count('bin.install "example"'), 4)
         self.assertEqual(updated.count('bin.install "example-helper"'), 4)
         for target, digest in hashes.items():
-            self.assertIn(f"example_#{{version}}_{target}.tar.gz", updated)
+            self.assertIn(f"example_0.36.1_{target}.tar.gz", updated)
             self.assertEqual(updated.count(digest), 1)
 
     def test_verified_hash_mode_rejects_duplicate_or_mismatched_version_lines(self) -> None:
@@ -961,7 +982,7 @@ end
         self.assertEqual([updated.index(item) for item in metadata], sorted(updated.index(item) for item in metadata))
         self.assertEqual(updated.count("def install"), 1)
         for target, digest in hashes.items():
-            self.assertIn(f"wacli_#{{version}}_{target}.tar.gz", updated)
+            self.assertIn(f"wacli_0.12.1_{target}.tar.gz", updated)
             self.assertEqual(updated.count(digest), 1)
 
     def test_seed_formula_escapes_ruby_description(self) -> None:

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Keep verified-hash release URLs literal so formulae can infer their version without a circular `#{version}` reference.
+
 - Install goplaces 0.4.11 through a Formula instead of the retired Cask, preserving published binary bytes and quarantine; record verified handoff provenance even when a formula is already current.
 
 **Highlights:** Restore normal tap installation for every package, install OCM and Peekaboo, and recover release updates without publishing partial formulae.

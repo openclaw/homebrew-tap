@@ -504,7 +504,7 @@ def render_verified_target_formula(
     text = update_version(text, version)
     assets = {
         target: (
-            interpolated_target_url(repository, tag, formula, version, template, target_aliases, target),
+            target_url(repository, tag, formula, version, template, target_aliases, target),
             hashes[target],
         )
         for target in RELEASE_TARGETS
