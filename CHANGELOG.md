@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Restore the updater's `verified-hashes-v1` trust marker so pinned source-release handoffs recognize the contract after the parser refactor.
+
 - Keep verified-hash release URLs literal so formulae can infer their version without a circular `#{version}` reference.
 
 - Install goplaces 0.4.11 through a Formula instead of the retired Cask, preserving published binary bytes and quarantine; record verified handoff provenance even when a formula is already current.
