@@ -38,7 +38,9 @@ class Crawlbar < Formula
     )
 
     assert_match "crawlbar commands:", shell_output("#{bin}/crawlbar --help")
-    assert_path_exists app/"Contents/Resources/CrawlBar_CrawlBar.bundle/google.png"
+    resources = app/"Contents/Resources/CrawlBar_CrawlBar.bundle"
+    resources /= "Contents/Resources" if (resources/"Contents/Resources").directory?
+    assert_path_exists resources/"google.png"
     assert_equal "com.vincentkoc.CrawlBar", bundle_id.strip
     assert_equal version.to_s, bundle_version.strip
     assert_match "Authority=Developer ID Application: OpenClaw Foundation (FWJYW4S8P8)", signature
