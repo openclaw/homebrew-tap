@@ -20,6 +20,7 @@
 - Fail stalled formula and cask downloads with a 30-second socket timeout; thanks @SebTardif.
 - Stop stalled source-tag Git fetches and lookups after 60 seconds; thanks @SebTardif.
 - Update the `slacrawl` formula to 0.8.7 with verified macOS and Linux archives for Intel and ARM.
+- Update `axorc` to 0.1.10 with the signed, notarized universal macOS archive.
 - Update the `goplaces` cask to 0.4.9 with the `--radius` alias and signed, notarized macOS binaries.
 - Preserve formula-owned install instructions and caveats while accepting exact four-platform release asset inventories and verified source-tag provenance.
 - Align Crabbox tap updates with published releases and downloaded checksums, with reconciliation as a recovery path.
