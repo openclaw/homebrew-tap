@@ -260,11 +260,7 @@ jobs:
             git add "Casks/${CASK}.rb"
           fi
 
-          if git diff --cached --quiet; then
-            if [ -n "$SOURCE_TAG_OBJECT" ]; then
-              echo "verified-hash update produced no formula change; refusing to succeed without a direct-child provenance commit" >&2
-              exit 1
-            fi
+          if git diff --cached --quiet && [ -z "$SOURCE_TAG_OBJECT" ]; then
             echo "Formula/${FORMULA}.rb${CASK:+ and Casks/${CASK}.rb} already up to date"
             exit 0
           fi
@@ -281,7 +277,8 @@ jobs:
               "Source-Tag-Object: ${SOURCE_TAG_OBJECT}" \
               "Source-Tag-Commit: ${SOURCE_TAG_COMMIT}" \
               "Request-ID: ${REQUEST_ID}")
-            git commit -m "$subject" -m "$provenance"
+            # A seeded formula still needs a commit binding this verified handoff.
+            git commit --allow-empty -m "$subject" -m "$provenance"
 
             revalidate_verified_source_tag() {
               (

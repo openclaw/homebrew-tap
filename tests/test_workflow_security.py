@@ -384,40 +384,6 @@ with mock.patch("urllib.request.OpenerDirector.open", side_effect=download), \\
             self.assertEqual(attempts.read_text(), "2")
             self.assertTrue(pulled.exists())
 
-    def test_verified_noop_fails_without_commit_or_push(self) -> None:
-        script = named_step_run(UPDATE_WORKFLOW.read_text(), "Commit and push")
-        with tempfile.TemporaryDirectory() as directory:
-            temp = pathlib.Path(directory)
-            mutation = temp / "mutation"
-            harness = f'''git() {{
-              case "$1" in
-                add) return 0 ;;
-                diff) return 0 ;;
-                commit|push) touch "$MUTATION_FILE" ;;
-              esac
-            }}
-            gh() {{ touch "$MUTATION_FILE"; }}
-            {script}
-            '''
-            completed = subprocess.run(
-                ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", harness],
-                cwd=ROOT,
-                env={
-                    **os.environ,
-                    "CASK": "",
-                    "FORMULA": "telecrawl",
-                    "MUTATION_FILE": str(mutation),
-                    "SOURCE_TAG_OBJECT": "d" * 40,
-                },
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-
-            self.assertNotEqual(completed.returncode, 0)
-            self.assertIn("without a direct-child provenance commit", completed.stderr)
-            self.assertFalse(mutation.exists())
-
     def test_verified_push_fails_closed_without_rebase_when_main_advances(self) -> None:
         script = named_step_run(UPDATE_WORKFLOW.read_text(), "Commit and push")
         with tempfile.TemporaryDirectory() as directory:
@@ -469,6 +435,12 @@ with mock.patch("urllib.request.OpenerDirector.open", side_effect=download), \\
             self.assertFalse(pushed.exists())
 
     def test_verified_push_revalidates_and_confirms_exact_remote_head(self) -> None:
+        self.check_verified_push(noop=False)
+
+    def test_verified_noop_creates_provenance_and_revalidates(self) -> None:
+        self.check_verified_push(noop=True)
+
+    def check_verified_push(self, *, noop: bool) -> None:
         script = named_step_run(UPDATE_WORKFLOW.read_text(), "Commit and push")
         with tempfile.TemporaryDirectory() as directory:
             temp = pathlib.Path(directory)
@@ -480,8 +452,11 @@ with mock.patch("urllib.request.OpenerDirector.open", side_effect=download), \\
             event_head = "a" * 40
             harness = f'''git() {{
               case "$1" in
-                add|commit) return 0 ;;
-                diff) return 1 ;;
+                add) return 0 ;;
+                commit)
+                  printf '%s\n' "$@" > "$COMMIT_ARGS_FILE"
+                  ;;
+                diff) return {0 if noop else 1} ;;
                 ls-remote)
                   if [ -f "$PUSHED_FILE" ]; then
                     touch "$REMOTE_PROVED_FILE"
@@ -518,6 +493,7 @@ with mock.patch("urllib.request.OpenerDirector.open", side_effect=download), \\
                     **os.environ,
                     "ARTIFACT_TEMPLATE": "{formula}_{version}_{target}.tar.gz",
                     "CASK": "",
+                    "COMMIT_ARGS_FILE": str(temp / "commit-args"),
                     "DARWIN_AMD64_SHA256": "1" * 64,
                     "DARWIN_ARM64_SHA256": "2" * 64,
                     "DEFAULT_BRANCH": "main",
@@ -542,6 +518,13 @@ with mock.patch("urllib.request.OpenerDirector.open", side_effect=download), \\
             )
 
             self.assertEqual(completed.returncode, 0)
+            self.assertEqual((temp / "commit-args").read_text().splitlines(), [
+                "commit", "--allow-empty", "-m", "telecrawl: update formula for v0.3.4", "-m",
+                "Source-Repository: openclaw/telecrawl",
+                "Source-Tag-Object: " + "d" * 40,
+                "Source-Tag-Commit: " + "c" * 40,
+                "Request-ID: telecrawl-v0.3.4-123",
+            ])
             self.assertEqual(revalidation_count.read_text(), "2")
             self.assertTrue(remote_proved.exists())
             self.assertFalse(token_leak.exists())

@@ -32,12 +32,15 @@ jobs:
 
       - name: Validate package syntax
         run: |
+          shopt -s nullglob
           for package in Formula/*.rb Casks/*.rb; do
             ruby -c "$package"
           done
 
       - name: Validate Homebrew style
-        run: brew style Formula/*.rb Casks/*.rb
+        run: |
+          shopt -s nullglob
+          brew style Formula/*.rb Casks/*.rb
 
       - name: Validate tap on every Homebrew platform
         run: |
