@@ -33,6 +33,7 @@ brew install --cask openclaw/tap/<name>
 - `discrawl` — Mirror Discord into SQLite and search server history locally
 - `gitcrawl` — Local GitHub issue and PR archive, search, and clustering
 - `gogcli` — Google CLI for Gmail, Calendar, Drive, Docs, Sheets, and more
+- `goplaces` — Go client and CLI for the Google Places API (New)
 - `graincrawl` — Local-first Granola crawler into SQLite and Markdown
 - `notcrawl` — Local-first Notion crawler into SQLite and normalized Markdown
 - `ocm` — Manage isolated OpenClaw environments, runtimes, and services
@@ -42,10 +43,6 @@ brew install --cask openclaw/tap/<name>
 - `telecrawl` — Telegram Desktop archive CLI with encrypted Git backups
 - `wacli` — WhatsApp CLI built on whatsmeow
 - `wacrawl` — Read-only WhatsApp Desktop archive CLI
-
-### Casks
-
-- `goplaces` — Modern Go client + CLI for the Google Places API (New)
 
 ## Update / Uninstall
 
@@ -75,7 +72,7 @@ The automation uses Python's standard library and Homebrew's Ruby tooling:
 
 ```bash
 python3 -B -m unittest discover -s tests -v
-brew style Formula/*.rb Casks/*.rb
+brew style Formula/*.rb
 brew ruby tests/test_ocm_platforms.rb
 ```
 
@@ -170,8 +167,8 @@ for verifying the public release bytes immediately before dispatch and again aft
 including its clean downstream Homebrew install proof. Each source-tag `git fetch` and
 `git ls-remote` verification has a 60-second deadline and aborts the update on timeout.
 
-Each successful verified dispatch must create one direct-child provenance commit; an already-current
-formula fails closed instead of reporting a trailerless no-op. The workflow revalidates the exact
+Each successful verified dispatch creates one direct-child provenance commit, including when the
+formula is already current. The workflow revalidates the exact
 public source tag without credentials immediately before its one-shot push and again after proving
 that the remote tap branch equals the pushed commit.
 
