@@ -1,7 +1,6 @@
 class Goplaces < Formula
   desc "Go client and CLI for the Google Places API (New)"
   homepage "https://github.com/openclaw/goplaces"
-  version "0.4.11"
   license "MIT"
 
   on_macos do
