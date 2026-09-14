@@ -491,6 +491,9 @@ class UpdateFormulaTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             update_formula.parse_target_aliases("darwin_arm64=shared,darwin_amd64=shared")
 
+    def test_verified_hash_contract_marker_is_preserved(self) -> None:
+        self.assertIn("\n# verified-hashes-v1\n", SCRIPT.read_text())
+
     def test_verified_hash_contract_is_atomic_and_strict(self) -> None:
         hashes = {
             "darwin_amd64": "1" * 64,

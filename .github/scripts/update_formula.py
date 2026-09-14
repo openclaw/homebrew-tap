@@ -206,6 +206,7 @@ def sha256(url: str) -> str:
     return digest.hexdigest()
 
 
+# verified-hashes-v1
 def validate_verified_hash_contract(
     hashes: dict[str, str | None],
     source_tag_commit: str | None,
