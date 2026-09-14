@@ -5,21 +5,21 @@ class Notcrawl < Formula
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/notcrawl/releases/download/v0.6.1/notcrawl_0.6.1_darwin_arm64.tar.gz"
-      sha256 "39476ebca70203bb6490d38cccc72ff9e553a7c77fd39ec2727e81a7beb45c57"
+      url "https://github.com/openclaw/notcrawl/releases/download/v0.6.2/notcrawl_0.6.2_darwin_arm64.tar.gz"
+      sha256 "33acf8378adc1d5078f7bd601340713bc9dc0af53cb2472948b114c02adff4b0"
     else
-      url "https://github.com/openclaw/notcrawl/releases/download/v0.6.1/notcrawl_0.6.1_darwin_amd64.tar.gz"
-      sha256 "d995849ef5b5bba93cd1fbd469fdcafb5f4d82bfe6b535d851f6e502beb21dc9"
+      url "https://github.com/openclaw/notcrawl/releases/download/v0.6.2/notcrawl_0.6.2_darwin_amd64.tar.gz"
+      sha256 "c5ecd1f53f2b251190833deb721a76bbdbfb8d325bd13e52d8efcc1772636ca6"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
-      url "https://github.com/openclaw/notcrawl/releases/download/v0.6.1/notcrawl_0.6.1_linux_arm64.tar.gz"
-      sha256 "d80b2a3e609f2ec52c95b1bc90457485691ae9acc30ba7310df177877b4f1a22"
+      url "https://github.com/openclaw/notcrawl/releases/download/v0.6.2/notcrawl_0.6.2_linux_arm64.tar.gz"
+      sha256 "4327be1999ef992d4371bda2c0fe847d1eeb9b001e9c1fecc4b1bff2e92fc0f8"
     else
-      url "https://github.com/openclaw/notcrawl/releases/download/v0.6.1/notcrawl_0.6.1_linux_amd64.tar.gz"
-      sha256 "847ff6c93af9aa1b4f56a161207ef4c5b5544a4a06fc357f5b7c5cc49fe75d3a"
+      url "https://github.com/openclaw/notcrawl/releases/download/v0.6.2/notcrawl_0.6.2_linux_amd64.tar.gz"
+      sha256 "ead35bfc22439484204d65e9e1ddb6aaf70b49587a5da95062f3c23daa5521e0"
     end
   end
 
