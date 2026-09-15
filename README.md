@@ -74,6 +74,7 @@ The automation uses Python's standard library and Homebrew's Ruby tooling:
 python3 -B -m unittest discover -s tests -v
 brew style Formula/*.rb
 brew ruby tests/test_ocm_platforms.rb
+brew ruby tests/test_crabbox_install.rb
 ```
 
 `update_formula.py` owns command validation, downloads, source-tag verification and
@@ -104,6 +105,11 @@ four published archive names/hashes. The updater downloads and hashes all four c
 release assets before writing, preserves maintained formula content, and succeeds when already
 current. Reconciliation is an independent fallback for stable published releases. Retry a failed tap
 handoff on its own; do not rebuild or republish to retry Homebrew.
+
+Crabbox releases with native JJ support install the helper, its build receipt,
+notice text, and attribution report beside the CLI. The complete companion bundle
+is required when any member is present; older releases without companions retain
+their existing installation layout.
 
 Public native and proxy-only Go-install smokes remain required independent channel health checks,
 not an additional approval gate for the tap. Installed-Homebrew smoke follows the update.
