@@ -29,8 +29,15 @@ class Crabbox < Formula
   end
 
   def install
+    companions = %w[crabbox-jj-source crabbox-jj-source.json crabbox-jj-source.NOTICES.txt attribution.json]
+    native_source = companions.any? { |file| File.exist?(file) || File.symlink?(file) }
+    if native_source && companions.any? { |file| !File.file?(file) || File.symlink?(file) }
+      odie "Incomplete native JJ companion bundle"
+    end
+
     bin.install "crabbox"
     bin.install "crabbox-apple-vm-helper" if OS.mac? && Hardware::CPU.arm?
+    bin.install companions if native_source
   end
 
   test do

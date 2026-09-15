@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Install complete native JJ companion bundles from Crabbox releases while preserving legacy releases without companions.
+
 - Restore the updater's `verified-hashes-v1` trust marker so pinned source-release handoffs recognize the contract after the parser refactor.
 
 - Keep verified-hash release URLs literal so formulae can infer their version without a circular `#{version}` reference.
