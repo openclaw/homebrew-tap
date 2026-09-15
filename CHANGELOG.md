@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Install complete native JJ companion bundles from Crabbox releases while preserving legacy releases without companions.
+- Install complete native JJ companion bundles from Crabbox releases while preserving legacy releases without companions. [PR](https://github.com/openclaw/homebrew-tap/pull/59)
 
 - Restore the updater's `verified-hashes-v1` trust marker so pinned source-release handoffs recognize the contract after the parser refactor.
 
