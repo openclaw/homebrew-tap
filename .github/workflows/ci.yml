@@ -32,6 +32,9 @@ jobs:
 
       - name: Validate package syntax
         run: |
+          for profile in .github/formula-profiles/*.rb; do
+            ruby -c "$profile"
+          done
           shopt -s nullglob
           for package in Formula/*.rb Casks/*.rb; do
             ruby -c "$package"

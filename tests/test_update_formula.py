@@ -15,6 +15,7 @@ from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / ".github" / "scripts" / "update_formula.py"
+FACETIME_PROFILE = ROOT / ".github" / "formula-profiles" / "openclaw-facetime.rb"
 SPEC = importlib.util.spec_from_file_location("update_formula", SCRIPT)
 assert SPEC and SPEC.loader
 update_formula = importlib.util.module_from_spec(SPEC)
@@ -76,6 +77,119 @@ def crabbox_arguments(mode: str) -> list[str]:
 
 
 class UpdateFormulaTest(unittest.TestCase):
+    def test_formula_profile_allowlist_binds_name_repository_artifact_and_template(self) -> None:
+        profile = update_formula.resolve_formula_profile(
+            "openclaw-facetime",
+            "openclaw-facetime",
+            "openclaw/openclaw-facetime",
+        )
+        self.assertEqual(profile.formula, "openclaw-facetime")
+        self.assertEqual(profile.repository, "openclaw/openclaw-facetime")
+        self.assertEqual(profile.artifact, "openclaw-facetime-macos-arm64.zip")
+        self.assertEqual(profile.template, pathlib.Path(".github/formula-profiles/openclaw-facetime.rb"))
+
+    def test_formula_profile_rejects_mismatches_and_untrusted_names_before_side_effects(self) -> None:
+        cases = (
+            ("openclaw-facetime", "other", "openclaw/openclaw-facetime", "requires formula"),
+            ("openclaw-facetime", "openclaw-facetime", "openclaw/other", "requires repository"),
+            ("unknown", "openclaw-facetime", "openclaw/openclaw-facetime", "unknown formula profile"),
+            ("../../openclaw-facetime", "openclaw-facetime", "openclaw/openclaw-facetime", "invalid formula profile"),
+        )
+        for profile, formula, repository, message in cases:
+            with self.subTest(profile=profile, formula=formula, repository=repository):
+                with (
+                    mock.patch.object(update_formula, "sha256") as download,
+                    mock.patch.object(pathlib.Path, "write_text") as write,
+                    self.assertRaisesRegex(SystemExit, message),
+                ):
+                    update_formula.main([
+                        "--formula", formula,
+                        "--formula-profile", profile,
+                        "--tag", "v1.2.3",
+                        "--repository", repository,
+                    ])
+                download.assert_not_called()
+                write.assert_not_called()
+
+    def test_formula_profile_rejects_artifact_overrides_before_side_effects(self) -> None:
+        with (
+            mock.patch.object(update_formula, "sha256") as download,
+            mock.patch.object(pathlib.Path, "write_text") as write,
+            self.assertRaisesRegex(SystemExit, "other artifact contracts: macos_artifact"),
+        ):
+            update_formula.main([
+                "--formula", "openclaw-facetime",
+                "--formula-profile", "openclaw-facetime",
+                "--tag", "v1.2.3",
+                "--repository", "openclaw/openclaw-facetime",
+                "--macos-artifact", "other.zip",
+            ])
+        download.assert_not_called()
+        write.assert_not_called()
+
+    def test_facetime_profile_seeds_then_updates_one_verified_artifact(self) -> None:
+        arguments = [
+            "--formula", "openclaw-facetime",
+            "--formula-profile", "openclaw-facetime",
+            "--tag", "v1.2.3",
+            "--repository", "openclaw/openclaw-facetime",
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "Formula").mkdir()
+            profile = root / ".github" / "formula-profiles" / "openclaw-facetime.rb"
+            profile.parent.mkdir(parents=True)
+            profile.write_bytes(FACETIME_PROFILE.read_bytes())
+            formula = root / "Formula" / "openclaw-facetime.rb"
+            previous_directory = pathlib.Path.cwd()
+            os.chdir(root)
+            try:
+                with mock.patch.object(update_formula, "sha256", return_value="e" * 64) as download:
+                    self.assertEqual(update_formula.main(arguments), 0)
+                first = formula.read_text()
+                first_url = (
+                    "https://github.com/openclaw/openclaw-facetime/releases/download/"
+                    "v1.2.3/openclaw-facetime-macos-arm64.zip"
+                )
+                download.assert_called_once_with(first_url)
+                self.assertIn(f'  url "{first_url}"', first)
+                self.assertIn(f'  sha256 "{"e" * 64}"', first)
+
+                with mock.patch.object(update_formula, "sha256", return_value="f" * 64) as download:
+                    self.assertEqual(update_formula.main([
+                        *arguments[:5], "v1.2.4", *arguments[6:]
+                    ]), 0)
+                second = formula.read_text()
+            finally:
+                os.chdir(previous_directory)
+
+            second_url = (
+                "https://github.com/openclaw/openclaw-facetime/releases/download/"
+                "v1.2.4/openclaw-facetime-macos-arm64.zip"
+            )
+            download.assert_called_once_with(second_url)
+            expected = first.replace(first_url, second_url).replace("e" * 64, "f" * 64)
+            self.assertEqual(second, expected)
+
+    def test_facetime_profile_owns_seven_runtime_files_and_sox_dependency(self) -> None:
+        text = FACETIME_PROFILE.read_text()
+        self.assertEqual(
+            re.findall(r'^\s+libexec\.install "([^"]+)"$', text, re.MULTILINE),
+            [
+                "facetime-audio-capture",
+                "FaceTimeHelper.dylib",
+                "FaceTimeHelper.build-id",
+                "VERSION",
+                "native-protocol.env",
+                "LICENSE",
+                "THIRD_PARTY_NOTICES.md",
+            ],
+        )
+        self.assertIn('  depends_on "sox"', text)
+        self.assertIn("  depends_on arch: :arm64", text)
+        self.assertEqual(text.count("  url "), 1)
+        self.assertNotIn('system "swift"', text)
+
     def assert_crabbox_verified_write_rejection(self, root: pathlib.Path, arguments: list[str]) -> None:
         before = {path.relative_to(root): path.read_bytes() for path in root.rglob("*") if path.is_file()}
         previous_directory = pathlib.Path.cwd()
