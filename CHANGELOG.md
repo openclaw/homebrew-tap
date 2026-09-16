@@ -2,10 +2,20 @@
 
 ## Unreleased
 
+- Install complete native JJ companion bundles from Crabbox releases while preserving legacy releases without companions. [PR](https://github.com/openclaw/homebrew-tap/pull/59)
+
+- Restore the updater's `verified-hashes-v1` trust marker so pinned source-release handoffs recognize the contract after the parser refactor.
+
+- Keep verified-hash release URLs literal so formulae can infer their version without a circular `#{version}` reference.
+
+- Install goplaces 0.4.11 through a Formula instead of the retired Cask, preserving published binary bytes and quarantine; record verified handoff provenance even when a formula is already current.
+
 **Highlights:** Restore normal tap installation for every package, install OCM and Peekaboo, and recover release updates without publishing partial formulae.
 
+- Preserve both files when a combined formula/cask update fails during input validation, download, or rendering.
+- Keep formula resources out of reconciliation's release inference so independently pinned resource assets do not block package updates.
 - Fix `brew tap openclaw/tap` rejecting the entire tap when validating OCM on Linux ARM64; retain the Linux x86_64 installation requirement and validate all Homebrew platforms in CI; thanks @jandubois.
-- Update OCM to v0.2.41 for macOS ARM64/Intel and Linux x86_64, preserving signed release binaries and testing installed packages on all three platforms. Use `brew upgrade openclaw/tap/ocm`; self-update now refuses to replace Homebrew-managed binaries.
+- Update OCM to v0.2.45 for macOS ARM64/Intel and Linux x86_64, including environment artifact exports, stopped-session recovery, environment-variable UI paths, and safer environment roots. Preserve signed release binaries; use `brew upgrade openclaw/tap/ocm`.
 - Add the Peekaboo universal macOS formula, update it to 4.3.2, and match its v4 help header in the installed smoke test.
 - Remove the deprecated Goplaces postflight hook, preserving quarantine on signed, notarized binaries and eliminating Homebrew's warning; thanks @karbo-hub.
 - Validate every checksum-download redirect before following it, rejecting HTTPS downgrades, credentials, and fragments while preserving the existing host contract; thanks @SebTardif.
@@ -18,6 +28,7 @@
 - Fail stalled formula and cask downloads with a 30-second socket timeout; thanks @SebTardif.
 - Stop stalled source-tag Git fetches and lookups after 60 seconds; thanks @SebTardif.
 - Update the `slacrawl` formula to 0.8.7 with verified macOS and Linux archives for Intel and ARM.
+- Update `axorc` to 0.1.10 with the signed, notarized universal macOS archive.
 - Update the `goplaces` cask to 0.4.9 with the `--radius` alias and signed, notarized macOS binaries.
 - Preserve formula-owned install instructions and caveats while accepting exact four-platform release asset inventories and verified source-tag provenance.
 - Align Crabbox tap updates with published releases and downloaded checksums, with reconciliation as a recovery path.

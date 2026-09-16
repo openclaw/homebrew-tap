@@ -1,8 +1,8 @@
 class Axorc < Formula
   desc "Inspect and automate macOS Accessibility from the shell"
   homepage "https://github.com/openclaw/AXorcist"
-  url "https://github.com/openclaw/AXorcist/releases/download/v0.1.9/axorc-0.1.9-macos-universal.zip"
-  sha256 "80f6d6faf5b753e54282abc6158a3c2f52a13dcb72b8f055e917b85d2a918852"
+  url "https://github.com/openclaw/AXorcist/releases/download/v0.1.10/axorc-0.1.10-macos-universal.zip"
+  sha256 "2da6f0fb59f35e5e4a56bf7bf062f38295f0b4deca9725f3a13c2e177a3daca3"
   license "MIT"
 
   depends_on macos: :sonoma

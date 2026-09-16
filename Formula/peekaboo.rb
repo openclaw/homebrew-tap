@@ -1,8 +1,8 @@
 class Peekaboo < Formula
   desc "Lightning-fast macOS screenshots & AI vision analysis"
   homepage "https://github.com/openclaw/Peekaboo"
-  url "https://github.com/openclaw/Peekaboo/releases/download/v4.3.3/peekaboo-macos-universal.tar.gz"
-  sha256 "8c9dae67e64459f47653f2d3cd7580e6b593e0d8122da1fbdbc2c8f090748641"
+  url "https://github.com/openclaw/Peekaboo/releases/download/v4.4.0/peekaboo-macos-universal.tar.gz"
+  sha256 "6260d3560dc05b8df6621ffac5544ff987291105842ffeb652ecf018ec725d45"
   license "MIT"
 
   # macOS Sequoia (15.0) or later required
@@ -30,10 +30,7 @@ class Peekaboo < Formula
   end
 
   test do
-    # Test that the binary runs and returns version
     assert_match "Peekaboo", shell_output("#{bin}/peekaboo --version")
-
-    # Test help command
     assert_match(/\AUsage\n\s+peekaboo\b/, shell_output("#{bin}/peekaboo --help"))
   end
 end

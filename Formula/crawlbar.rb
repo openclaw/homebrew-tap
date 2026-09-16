@@ -1,8 +1,8 @@
 class Crawlbar < Formula
   desc "macOS menu bar control plane for local-first crawler CLIs"
   homepage "https://github.com/openclaw/crawlbar"
-  url "https://github.com/openclaw/crawlbar/releases/download/v0.4.1/CrawlBar-v0.4.1-macos.zip"
-  sha256 "5733d7151d0ec45c4d9cab877d3100654a964e57cb0772dc4bc27807d9509a85"
+  url "https://github.com/openclaw/crawlbar/releases/download/v0.5.0/CrawlBar-v0.5.0-macos.zip"
+  sha256 "ffe8c3c83794100a3c820f96af0a4dd76fabff7e110daeb9e55a9ce2c5e6a258"
   license "MIT"
 
   depends_on macos: :sonoma
@@ -38,7 +38,9 @@ class Crawlbar < Formula
     )
 
     assert_match "crawlbar commands:", shell_output("#{bin}/crawlbar --help")
-    assert_path_exists app/"Contents/Resources/CrawlBar_CrawlBar.bundle/google.png"
+    resources = app/"Contents/Resources/CrawlBar_CrawlBar.bundle"
+    resources /= "Contents/Resources" if (resources/"Contents/Resources").directory?
+    assert_path_exists resources/"google.png"
     assert_equal "com.vincentkoc.CrawlBar", bundle_id.strip
     assert_equal version.to_s, bundle_version.strip
     assert_match "Authority=Developer ID Application: OpenClaw Foundation (FWJYW4S8P8)", signature

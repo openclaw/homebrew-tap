@@ -33,6 +33,7 @@ brew install --cask openclaw/tap/<name>
 - `discrawl` — Mirror Discord into SQLite and search server history locally
 - `gitcrawl` — Local GitHub issue and PR archive, search, and clustering
 - `gogcli` — Google CLI for Gmail, Calendar, Drive, Docs, Sheets, and more
+- `goplaces` — Go client and CLI for the Google Places API (New)
 - `graincrawl` — Local-first Granola crawler into SQLite and Markdown
 - `notcrawl` — Local-first Notion crawler into SQLite and normalized Markdown
 - `ocm` — Manage isolated OpenClaw environments, runtimes, and services
@@ -42,10 +43,6 @@ brew install --cask openclaw/tap/<name>
 - `telecrawl` — Telegram Desktop archive CLI with encrypted Git backups
 - `wacli` — WhatsApp CLI built on whatsmeow
 - `wacrawl` — Read-only WhatsApp Desktop archive CLI
-
-### Casks
-
-- `goplaces` — Modern Go client + CLI for the Google Places API (New)
 
 ## Update / Uninstall
 
@@ -69,6 +66,25 @@ brew uninstall --cask --zap openclaw/tap/<name>
 
 ## Maintainers
 
+### Local validation and code layout
+
+The automation uses Python's standard library and Homebrew's Ruby tooling:
+
+```bash
+python3 -B -m unittest discover -s tests -v
+brew style Formula/*.rb
+brew ruby tests/test_ocm_platforms.rb
+brew ruby tests/test_crabbox_install.rb
+```
+
+`update_formula.py` owns command validation, downloads, source-tag verification and
+file writes. `formula_text.py` parses and renders formula text without network or
+filesystem access. `reconcile_formulae.py` discovers release drift and invokes the
+updater. These scripts live in `.github/scripts/`; formula-specific installation
+behavior stays in `Formula/*.rb`.
+
+### Release dispatch
+
 Formula updates have two automated paths. Source-repository release workflows dispatch
 `Update Formula` for immediate updates. That workflow accepts a Homebrew formula token, a semantic release tag, and a
 GitHub repository in `owner/repo` form. Optional artifact inputs must resolve to HTTPS release
@@ -90,6 +106,11 @@ release assets before writing, preserves maintained formula content, and succeed
 current. Reconciliation is an independent fallback for stable published releases. Retry a failed tap
 handoff on its own; do not rebuild or republish to retry Homebrew.
 
+Crabbox releases with native JJ support install the helper, its build receipt,
+notice text, and attribution report beside the CLI. The complete companion bundle
+is required when any member is present; older releases without companions retain
+their existing installation layout.
+
 Public native and proxy-only Go-install smokes remain required independent channel health checks,
 not an additional approval gate for the tap. Installed-Homebrew smoke follows the update.
 Crabbox's obsolete `verified-hashes-v1` write mode fails with guidance to use ordinary `assets`;
@@ -101,14 +122,20 @@ preserves that content while changing release metadata. In legacy multi-target m
 `linux_url` refreshes both the matching GitHub source-archive URL and its checksum. Maintain
 formula-specific content here rather than in an upstream release workflow. Newly generated
 formulae remain in memory until all required checksum downloads and rendering succeed, so
-failed creation leaves no placeholder file.
+failed creation leaves no placeholder file. Combined formula/cask updates also finish
+all downloads and rendering before writing either file, so a missing or invalid cask
+leaves the formula unchanged.
 For Gitcrawl, see the [configuration reference](https://gitcrawl.sh/configuration/)
 and [gh shim migration to Octopool](https://gitcrawl.sh/gh-shim/).
+
+### Reconciliation
 
 `Reconcile Formulae` is the self-healing fallback for formulae. Every three hours
 it derives each source repository from the formula's GitHub `homepage`, compares the formula with that repository's latest
 stable published release, and runs the same updater and checksum-download logic when the release is
 newer. Invalid formula metadata is reported and skipped so later formulae are still inspected.
+Resource URLs are excluded from release inference, including resources from the same
+source repository; their pinned versions and checksums remain unchanged.
 It never downgrades, skips drafts and prereleases, and makes no commit when every formula is
 current. Manual reconciles default to dry-run and can target one formula. The reconciler reads public
 release metadata and pushes with this tap's own `GITHUB_TOKEN`; it needs no cross-repository token or
@@ -120,10 +147,14 @@ preserves the published executable bytes, including the macOS Developer ID signa
 Changes to the OCM formula or its updater run installed-Homebrew tests on macOS ARM64,
 macOS x86_64, and Linux x86_64, using the checked-out formula rather than the public tap.
 
-Pull requests and updates to `main` run the updater and reconciler tests and validate every formula's
-Ruby syntax. They also load the checked-out tap on every Homebrew OS/architecture combination,
+Pull requests and updates to `main` run the automation tests and validate Ruby syntax
+and Homebrew style for every formula and cask. Superseded pull-request validation runs
+are canceled, while main-branch checks finish independently. They also load the checked-out
+tap on every Homebrew OS/architecture combination,
 including unsupported installation targets. Formulae must always define a URL; use an architecture
 requirement to reject unsupported installs rather than leaving platform metadata empty.
+
+### Asset handoff contracts
 
 Fleet release workflows use the optional `assets` JSON contract: exactly one `name` and `sha256`
 for each Darwin/Linux amd64/arm64 target. The updater renders those names and hashes verbatim,
@@ -136,14 +167,15 @@ Other four-target binary releases can use the workflow's `verified-hashes-v1` co
 canonical target SHA-256 inputs, `source_tag_object`, `source_tag_commit`, and `request_id` with an
 explicit `{target}` artifact template. This mode requires an existing formula, checks that the live
 source ref is the supplied annotated tag object and peeled commit, renders the target URL/checksum
-pairs directly from the supplied hashes, and never downloads release assets to recompute them.
+pairs as literal release URLs directly from the supplied hashes, and never downloads release assets to recompute them.
+Literal URLs also let Homebrew infer the version when the formula omits a redundant explicit version line.
 Partial or mixed legacy/verified input sets fail closed. The source repository remains responsible
 for verifying the public release bytes immediately before dispatch and again after the tap update,
 including its clean downstream Homebrew install proof. Each source-tag `git fetch` and
 `git ls-remote` verification has a 60-second deadline and aborts the update on timeout.
 
-Each successful verified dispatch must create one direct-child provenance commit; an already-current
-formula fails closed instead of reporting a trailerless no-op. The workflow revalidates the exact
+Each successful verified dispatch creates one direct-child provenance commit, including when the
+formula is already current. The workflow revalidates the exact
 public source tag without credentials immediately before its one-shot push and again after proving
 that the remote tap branch equals the pushed commit.
 

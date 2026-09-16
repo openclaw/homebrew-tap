@@ -200,18 +200,18 @@ class UpdateFormulaTest(unittest.TestCase):
                     update_formula,
                     sha256=mock.DEFAULT,
                     verify_remote_source_tag=mock.DEFAULT,
-                    seed_formula=mock.DEFAULT,
-                    update_cask=mock.DEFAULT,
+                    prepare_cask_update=mock.DEFAULT,
                 ) as operations,
+                mock.patch.object(update_formula.formula_text, "seed_formula") as seed,
                 mock.patch.object(update_formula.urllib.request.OpenerDirector, "open") as network,
                 mock.patch.object(update_formula.subprocess, "run") as process,
                 mock.patch.object(pathlib.Path, "write_text") as write,
             ):
-                for operation in (*operations.values(), network, process, write):
+                for operation in (*operations.values(), seed, network, process, write):
                     operation.side_effect = AssertionError("side effect before obsolete-contract rejection")
                 with self.assertRaisesRegex(SystemExit, "Crabbox.*ordinary.*assets.*docs/RELEASING.md"):
                     update_formula.main(arguments)
-                for operation in (*operations.values(), network, process, write):
+                for operation in (*operations.values(), seed, network, process, write):
                     operation.assert_not_called()
         finally:
             os.chdir(previous_directory)
@@ -259,8 +259,8 @@ class UpdateFormulaTest(unittest.TestCase):
         original = (ROOT / "Formula" / "crabbox.rb").read_text()
         assets = crabbox_assets()
         expected = original
-        for match in update_formula.iter_url_sha_pairs(original):
-            target = update_formula.classify_target(match.group("url"), {}, "1.2.3")
+        for match in update_formula.formula_text.iter_url_sha_pairs(original):
+            target = update_formula.formula_text.classify_target(match.group("url"), {}, "1.2.3")
             item = assets[target]
             expected = expected.replace(match.group("url"), update_formula.explicit_asset_url(
                 "openclaw/crabbox", "v1.2.3", item["name"],
@@ -336,7 +336,7 @@ class UpdateFormulaTest(unittest.TestCase):
                         try:
                             with (
                                 mock.patch.object(update_formula.urllib.request.OpenerDirector, "open", side_effect=download) as network,
-                                mock.patch.object(update_formula, "update_cask") as cask,
+                                mock.patch.object(update_formula, "prepare_cask_update") as cask,
                                 self.assertRaisesRegex(
                                     (SystemExit, urllib.error.HTTPError),
                                     "SHA-256 mismatch|404|must contain exactly",
@@ -368,7 +368,7 @@ class UpdateFormulaTest(unittest.TestCase):
                 self.assertEqual(network.call_count, 4)
             finally:
                 os.chdir(previous_directory)
-            pairs = update_formula.iter_url_sha_pairs(path.read_text())
+            pairs = update_formula.formula_text.iter_url_sha_pairs(path.read_text())
             self.assertCountEqual(
                 [(match.group("url"), match.group("sha")) for match in pairs],
                 [(update_formula.explicit_asset_url("openclaw/crabbox", "v1.2.3", item["name"]), item["sha256"])
@@ -389,8 +389,8 @@ class UpdateFormulaTest(unittest.TestCase):
                     with (
                         mock.patch.object(update_formula, "verify_remote_source_tag") as verify_tag,
                         mock.patch.object(update_formula, "sha256") as download,
-                        mock.patch.object(update_formula, "seed_formula") as seed,
-                        mock.patch.object(update_formula, "update_cask") as cask,
+                        mock.patch.object(update_formula.formula_text, "seed_formula") as seed,
+                        mock.patch.object(update_formula, "prepare_cask_update") as cask,
                         mock.patch.object(pathlib.Path, "write_text") as write,
                     ):
                         self.assertEqual(update_formula.main(crabbox_arguments("verified-hashes") + ["--verify-source-tag-only"]), 0)
@@ -492,7 +492,7 @@ class UpdateFormulaTest(unittest.TestCase):
         major, minor, patch = version_match.groups()
         version = f"{major}.{minor}.{int(patch) + 1}"
         hashes = {target: str(index) * 64 for index, target in enumerate(update_formula.RELEASE_TARGETS, 1)}
-        old_pairs = {(match.group("url"), match.group("sha")) for match in update_formula.iter_url_sha_pairs(formula)}
+        old_pairs = {(match.group("url"), match.group("sha")) for match in update_formula.formula_text.iter_url_sha_pairs(formula)}
         metadata = r'(?m)^\s*(?:version|url|sha256) "[^"\n]+"$'
 
         for mode in ("explicit-assets", "legacy-template", "verified-hashes"):
@@ -547,7 +547,7 @@ class UpdateFormulaTest(unittest.TestCase):
                     self.assertCountEqual([call.args[0] for call in download.call_args_list], expected)
                 pairs = [
                     (match.group("url").replace("#{version}", version), match.group("sha"))
-                    for match in update_formula.iter_url_sha_pairs(updated)
+                    for match in update_formula.formula_text.iter_url_sha_pairs(updated)
                 ]
                 self.assertCountEqual(pairs, expected.items())
                 self.assertTrue(set(pairs).isdisjoint(old_pairs))
@@ -604,6 +604,9 @@ class UpdateFormulaTest(unittest.TestCase):
             update_formula.parse_target_aliases("unknown=linux-amd64")
         with self.assertRaises(SystemExit):
             update_formula.parse_target_aliases("darwin_arm64=shared,darwin_amd64=shared")
+
+    def test_verified_hash_contract_marker_is_preserved(self) -> None:
+        self.assertIn("\n# verified-hashes-v1\n", SCRIPT.read_text())
 
     def test_verified_hash_contract_is_atomic_and_strict(self) -> None:
         hashes = {
@@ -977,11 +980,32 @@ end
         self.assertIn("Hardware::CPU.intel? && Hardware::CPU.is_64_bit?", updated)
         for target, digest in hashes.items():
             self.assertIn(
-                f'url "https://github.com/openclaw/example/releases/download/v#{{version}}/'
-                f'example_#{{version}}_{target}.tar.gz"\n      sha256 "{digest}"',
+                f'url "https://github.com/openclaw/example/releases/download/v1.2.3/'
+                f'example_1.2.3_{target}.tar.gz"\n      sha256 "{digest}"',
                 updated,
             )
             self.assertEqual(updated.count(digest), 1)
+
+    def test_verified_hash_mode_keeps_url_derived_versions_loadable(self) -> None:
+        hashes = {target: "a" * 64 for target in update_formula.RELEASE_TARGETS}
+        updated = update_formula.formula_text.render_verified_target_formula(
+            platform_install_formula(), "openclaw/example", "v2.3.4", "example", "2.3.4",
+            "{formula}_{version}_{target}.tar.gz", {}, hashes,
+        )
+        self.assertNotIn("#{version}", updated)
+        self.assertNotRegex(updated, r"(?m)^\s*version ")
+        for target in hashes:
+            self.assertIn(
+                f'url "https://github.com/openclaw/example/releases/download/v2.3.4/example_2.3.4_{target}.tar.gz"',
+                updated,
+            )
+        self.assertEqual(
+            update_formula.formula_text.render_verified_target_formula(
+                updated, "openclaw/example", "v2.3.4", "example", "2.3.4",
+                "{formula}_{version}_{target}.tar.gz", {}, hashes,
+            ),
+            updated,
+        )
 
     def test_verified_hash_mode_preserves_formula_specific_install_blocks(self) -> None:
         formula = platform_install_formula()
@@ -992,7 +1016,7 @@ end
             "linux_arm64": "4" * 64,
         }
 
-        updated = update_formula.render_verified_target_formula(
+        updated = update_formula.formula_text.render_verified_target_formula(
             formula,
             "openclaw/example",
             "v0.36.1",
@@ -1008,7 +1032,7 @@ end
         self.assertEqual(updated.count('bin.install "example"'), 4)
         self.assertEqual(updated.count('bin.install "example-helper"'), 4)
         for target, digest in hashes.items():
-            self.assertIn(f"example_#{{version}}_{target}.tar.gz", updated)
+            self.assertIn(f"example_0.36.1_{target}.tar.gz", updated)
             self.assertEqual(updated.count(digest), 1)
 
     def test_verified_hash_mode_rejects_duplicate_or_mismatched_version_lines(self) -> None:
@@ -1034,7 +1058,7 @@ end
         )
         for description, candidate, message in cases:
             with self.subTest(description=description), self.assertRaisesRegex(SystemExit, message):
-                update_formula.render_verified_target_formula(
+                update_formula.formula_text.render_verified_target_formula(
                     candidate,
                     "openclaw/example",
                     "v0.43.1",
@@ -1054,7 +1078,7 @@ end
             "linux_arm64": "4" * 64,
         }
 
-        updated = update_formula.render_verified_target_formula(
+        updated = update_formula.formula_text.render_verified_target_formula(
             formula,
             "openclaw/wacli",
             "v0.12.1",
@@ -1075,11 +1099,11 @@ end
         self.assertEqual([updated.index(item) for item in metadata], sorted(updated.index(item) for item in metadata))
         self.assertEqual(updated.count("def install"), 1)
         for target, digest in hashes.items():
-            self.assertIn(f"wacli_#{{version}}_{target}.tar.gz", updated)
+            self.assertIn(f"wacli_0.12.1_{target}.tar.gz", updated)
             self.assertEqual(updated.count(digest), 1)
 
     def test_seed_formula_escapes_ruby_description(self) -> None:
-        seeded = update_formula.seed_formula(
+        seeded = update_formula.formula_text.seed_formula(
             "example",
             "openclaw/example",
             "1.2.3",
@@ -1173,7 +1197,7 @@ end
 end
 '''
 
-        updated = update_formula.update_url_and_sha_in_stanza(
+        updated = update_formula.formula_text.update_url_and_sha_in_stanza(
             text,
             "on_linux",
             "https://github.com/steipete/camsnap/archive/refs/tags/v0.3.0.tar.gz",
@@ -1185,7 +1209,7 @@ end
         self.assertEqual(updated.count("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"), 2)
 
     def test_target_update_handles_version_length_change(self) -> None:
-        formula = update_formula.seed_formula(
+        formula = update_formula.formula_text.seed_formula(
             "example",
             "openclaw/example",
             "0.7.9",
@@ -1222,14 +1246,14 @@ end
             "https://github.com/openclaw/example/releases/download/v0.43.0/"
             "example_0.43.0_mystery.tar.gz"
         )
-        self.assertIsNone(update_formula.classify_target(mystery_url, {}, "0.43.0"))
+        self.assertIsNone(update_formula.formula_text.classify_target(mystery_url, {}, "0.43.0"))
         formula = platform_install_formula().replace(
             '  license "MIT"',
             '  version "0.43.0"\n  license "MIT"',
         ).replace("example_0.43.0_linux_arm64.tar.gz", "example_0.43.0_mystery.tar.gz")
         classified = [
-            update_formula.classify_target(match.group("url"), {}, "0.43.0")
-            for match in update_formula.iter_url_sha_pairs(formula)
+            update_formula.formula_text.classify_target(match.group("url"), {}, "0.43.0")
+            for match in update_formula.formula_text.iter_url_sha_pairs(formula)
         ]
         self.assertEqual(classified.count(None), 1)
         self.assertEqual(len([target for target in classified if target]), 3)
@@ -1418,7 +1442,7 @@ end
 '''
 
         with self.assertRaises(SystemExit) as raised:
-            update_formula.update_url_and_sha_in_stanza(
+            update_formula.formula_text.update_url_and_sha_in_stanza(
                 text,
                 "on_linux",
                 "https://github.com/steipete/example/archive/refs/tags/v1.0.1.tar.gz",
@@ -1459,7 +1483,7 @@ end
 end
 '''
 
-        self.assertTrue(update_formula.uses_stanza_url_mode(text, "0.9.2"))
+        self.assertTrue(update_formula.formula_text.uses_stanza_url_mode(text, "0.9.2"))
 
     def test_converts_duplicate_platform_stanzas_to_target_urls(self) -> None:
         text = '''class Wacli < Formula
@@ -1494,7 +1518,7 @@ end
 end
 '''
 
-        updated = update_formula.convert_stanza_url_mode_to_targets(
+        updated = update_formula.formula_text.convert_stanza_url_mode_to_targets(
             text,
             "openclaw/wacli",
             "v0.9.3",
@@ -1531,7 +1555,7 @@ end
 end
 '''
 
-        updated = update_formula.insert_target_stanzas(
+        updated = update_formula.formula_text.insert_target_stanzas(
             text,
             "steipete/sag",
             "v0.3.1",
@@ -1558,8 +1582,8 @@ end
 end
 '''
 
-        updated = update_formula.update_version(text, "0.27.0")
-        updated = update_formula.update_top_level_url_and_sha(
+        updated = update_formula.formula_text.update_version(text, "0.27.0")
+        updated = update_formula.formula_text.update_top_level_url_and_sha(
             updated,
             "https://github.com/steipete/CodexBar/releases/download/v0.27.0/CodexBar-macos-universal-0.27.0.zip",
             "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
@@ -1569,6 +1593,31 @@ end
         self.assertIn('version "0.27.0"', updated)
         self.assertIn('sha256 "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"', updated)
         self.assertIn("CodexBar-macos-universal-#{version}.zip", updated)
+
+    def test_single_archive_update_preserves_resource_metadata(self) -> None:
+        resource = (
+            '  resource "helper" do\n'
+            '    version "0.9.0"\n'
+            '    url "https://example.org/helper.tar.gz"\n'
+            f'    sha256 "{"f" * 64}"\n'
+            '  end # helper resource\n'
+        )
+        original = (
+            'class Example < Formula\n'
+            + resource
+            + '  version "1.2.2"\n'
+            '  url "https://example.org/example-#{version}.tar.gz"\n'
+            f'  sha256 "{"a" * 64}"\n'
+            'end\n'
+        )
+        updated = update_formula.formula_text.update_version(original, "1.2.3")
+        updated = update_formula.formula_text.update_top_level_url_and_sha(
+            updated, "https://example.org/example-1.2.3.tar.gz", "b" * 64, "1.2.3",
+        )
+        self.assertIn(resource, updated)
+        self.assertIn('  version "1.2.3"', updated)
+        self.assertIn('  sha256 "' + 'b' * 64, updated)
+        self.assertIn('  url "https://example.org/example-#{version}.tar.gz"', updated)
 
     def test_sha256_download_budget_is_documented(self) -> None:
         self.assertEqual(update_formula.DOWNLOAD_TIMEOUT_SECONDS, 30)
