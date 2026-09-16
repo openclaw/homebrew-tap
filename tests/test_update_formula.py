@@ -171,13 +171,14 @@ class UpdateFormulaTest(unittest.TestCase):
             expected = first.replace(first_url, second_url).replace("e" * 64, "f" * 64)
             self.assertEqual(second, expected)
 
-    def test_facetime_profile_owns_seven_runtime_files_and_sox_dependency(self) -> None:
+    def test_facetime_profile_preserves_signed_helper_and_owns_runtime_files(self) -> None:
         text = FACETIME_PROFILE.read_text()
         self.assertEqual(
             re.findall(r'^\s+libexec\.install "([^"]+)"$', text, re.MULTILINE),
             [
                 "facetime-audio-capture",
                 "FaceTimeHelper.dylib",
+                "FaceTimeHelper.dylib.gz",
                 "FaceTimeHelper.build-id",
                 "VERSION",
                 "native-protocol.env",
@@ -187,6 +188,17 @@ class UpdateFormulaTest(unittest.TestCase):
         )
         self.assertIn('  depends_on "sox"', text)
         self.assertIn("  depends_on arch: :arm64", text)
+        self.assertIn('Zlib::GzipWriter.open("FaceTimeHelper.dylib.gz")', text)
+        self.assertIn(
+            'install_gzipped_executable "libexec/FaceTimeHelper.dylib.gz",',
+            text,
+        )
+        self.assertIn(
+            '"Authority=Developer ID Application: OpenClaw Foundation (FWJYW4S8P8)"',
+            text,
+        )
+        self.assertIn('"TeamIdentifier=FWJYW4S8P8"', text)
+        self.assertNotIn("--check-notarization", text)
         self.assertEqual(text.count("  url "), 1)
         self.assertNotIn('system "swift"', text)
 
