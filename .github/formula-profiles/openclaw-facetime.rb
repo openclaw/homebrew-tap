@@ -1,7 +1,9 @@
+require "zlib"
+
 class OpenclawFacetime < Formula
   desc "Native FaceTime audio and call-control helpers for OpenClaw"
   homepage "https://github.com/openclaw/openclaw-facetime"
-  url "https://github.com/openclaw/openclaw-facetime/releases/download/v0.1.0/openclaw-facetime-macos-arm64.zip"
+  url "https://github.com/openclaw/openclaw-facetime/releases/download/v0.1.1/openclaw-facetime-macos-arm64.zip"
   sha256 "RELEASE_SHA256"
   license "MIT"
 
@@ -13,13 +15,22 @@ class OpenclawFacetime < Formula
 
   def install
     odie "openclaw-facetime requires macOS 14.4 or later" if MacOS.version < "14.4"
+    Zlib::GzipWriter.open("FaceTimeHelper.dylib.gz") do |gzip|
+      gzip.write File.binread("FaceTimeHelper.dylib")
+    end
     libexec.install "facetime-audio-capture"
     libexec.install "FaceTimeHelper.dylib"
+    libexec.install "FaceTimeHelper.dylib.gz"
     libexec.install "FaceTimeHelper.build-id"
     libexec.install "VERSION"
     libexec.install "native-protocol.env"
     libexec.install "LICENSE"
     libexec.install "THIRD_PARTY_NOTICES.md"
+  end
+
+  post_install_steps do
+    install_gzipped_executable "libexec/FaceTimeHelper.dylib.gz",
+                               "libexec/FaceTimeHelper.dylib"
   end
 
   def caveats
@@ -43,9 +54,12 @@ class OpenclawFacetime < Formula
     assert_match(/\A[0-9a-f]{64}\n?\z/, (libexec/"FaceTimeHelper.build-id").read)
     assert_match version.to_s, (libexec/"VERSION").read
     assert_equal "NATIVE_PROTOCOL_VERSION=1\n", (libexec/"native-protocol.env").read
-    system "/usr/bin/codesign", "--verify", "--strict", "--check-notarization",
-           "-R=notarized", libexec/"facetime-audio-capture"
-    system "/usr/bin/codesign", "--verify", "--strict", "--check-notarization",
-           "-R=notarized", libexec/"FaceTimeHelper.dylib"
+    %w[facetime-audio-capture FaceTimeHelper.dylib].each do |artifact|
+      path = libexec/artifact
+      system "/usr/bin/codesign", "--verify", "--strict", path
+      signature = shell_output("/usr/bin/codesign -dvv #{path} 2>&1")
+      assert_match "Authority=Developer ID Application: OpenClaw Foundation (FWJYW4S8P8)", signature
+      assert_match "TeamIdentifier=FWJYW4S8P8", signature
+    end
   end
 end
