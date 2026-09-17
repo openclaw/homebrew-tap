@@ -36,6 +36,7 @@ class Crabbox < Formula
     end
 
     bin.install "crabbox"
+    bin.install "crabbox-runtime" if File.directory?("crabbox-runtime")
     bin.install "crabbox-apple-vm-helper" if OS.mac? && Hardware::CPU.arm?
     bin.install companions if native_source
   end
