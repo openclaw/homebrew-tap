@@ -109,7 +109,9 @@ handoff on its own; do not rebuild or republish to retry Homebrew.
 Crabbox releases with native JJ support install the helper, its build receipt,
 notice text, and attribution report beside the CLI. The complete companion bundle
 is required when any member is present; older releases without companions retain
-their existing installation layout.
+their existing installation layout. Releases containing `crabbox-runtime/` install
+the entire directory beside the CLI in its keg, preserving both runtime binaries
+and their manifest; older archives without a runtime pack remain supported.
 
 Public native and proxy-only Go-install smokes remain required independent channel health checks,
 not an additional approval gate for the tap. Installed-Homebrew smoke follows the update.
