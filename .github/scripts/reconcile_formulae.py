@@ -146,6 +146,12 @@ def infer_update_options(
     if not release_urls:
         raise ValueError("formula has no source-repository release asset URL/checksum pair")
 
+    pair = update_formula.darwin_pair_release_assets(text, repository)
+    if pair is not None:
+        if pair[0] != current_tag:
+            raise ValueError(f"release URL tag {pair[0]!r} does not match current tag {current_tag!r}")
+        return ()
+
     if len(release_urls) == 1:
         tag, asset = release_urls[0]
         url_template = (

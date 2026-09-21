@@ -141,6 +141,71 @@ class MacOSAssetsTest(unittest.TestCase):
             expected = expected.replace(item["sha256"], "e" * 64)
         self.assertEqual(updated, expected)
 
+    def test_reconciles_encoded_targets_without_filename_inference(self) -> None:
+        for names in (("a.tar.gz", "b.tar.gz"), ("a-4.4.1.tar.gz", "different-4.4.1-build.tar.gz"),
+                      ("intel-named-4.4.1.tar.gz", "macos-arm64.tar.gz")):
+            with self.subTest(names=names):
+                self.path.write_text(self.original)
+                assets = macos_assets()
+                for item, name in zip(assets.values(), names):
+                    item["name"] = name
+                first = self.update(assets)
+                info = reconcile_formulae.parse_formula(self.path)
+                self.assertEqual(info.update_options, ())
+                expected_urls = {
+                    target: update_formula.explicit_asset_url("openclaw/Peekaboo", "v4.4.2", item["name"].replace("4.4.1", "4.4.2"))
+                    for target, item in assets.items()
+                }
+                downloads = {url: assets[target]["sha256"] for target, url in expected_urls.items()}
+                with mock.patch.object(update_formula, "sha256", side_effect=downloads.__getitem__) as download:
+                    self.assertEqual(update_formula.main([
+                        "--formula", info.name, "--repository", info.repository, "--tag", "v4.4.2", *info.update_options,
+                    ]), 0)
+                self.assertCountEqual([call.args[0] for call in download.call_args_list], downloads)
+                pairs = update_formula.formula_text.iter_primary_url_sha_pairs(self.path.read_text())
+                self.assertEqual({pair.target: pair.url for pair in pairs}, expected_urls)
+                self.assertEqual(self.path.read_text(), first.replace("4.4.1", "4.4.2"))
+
+    def test_reconciliation_second_download_failure_leaves_formula_untouched(self) -> None:
+        first = self.update(macos_assets())
+        info = reconcile_formulae.parse_formula(self.path)
+        with mock.patch.object(update_formula, "sha256", side_effect=["e" * 64, SystemExit("download failed")]) as download:
+            with self.assertRaisesRegex(SystemExit, "download failed"):
+                update_formula.main([
+                    "--formula", info.name, "--repository", info.repository, "--tag", "v4.4.2", *info.update_options,
+                ])
+        self.assertEqual(download.call_count, 2)
+        self.assertEqual(self.path.read_text(), first)
+
+    def test_explicit_template_uses_encoded_targets(self) -> None:
+        assets = macos_assets()
+        assets["darwin_arm64"]["name"] = "macos-x86_64.tar.gz"
+        assets["darwin_amd64"]["name"] = "macos-arm64.tar.gz"
+        self.update(assets)
+        with mock.patch.object(update_formula, "sha256", return_value="e" * 64):
+            self.assertEqual(update_formula.main([
+                "--formula", "peekaboo", "--repository", "openclaw/Peekaboo", "--tag", "v4.4.2",
+                "--artifact-template", "cli-{target}-{version}.tar.gz",
+            ]), 0)
+        pairs = update_formula.formula_text.iter_primary_url_sha_pairs(self.path.read_text())
+        self.assertEqual({pair.target: pair.url for pair in pairs}, {
+            target: f"https://github.com/openclaw/Peekaboo/releases/download/v4.4.2/cli-{target}-4.4.2.tar.gz"
+            for target in assets
+        })
+
+    def test_reconciliation_rejects_incoherent_pair_before_downloading(self) -> None:
+        first = self.update(macos_assets())
+        for wrong in (first.replace("/v4.4.1/", "/v4.3.0/", 1),
+                      first.replace("/openclaw/Peekaboo/releases/", "/openclaw/other/releases/", 1)):
+            with self.subTest(text=wrong):
+                self.path.write_text(wrong)
+                with mock.patch.object(update_formula, "sha256") as download, self.assertRaises(SystemExit):
+                    update_formula.main([
+                        "--formula", "peekaboo", "--repository", "openclaw/Peekaboo", "--tag", "v4.4.2",
+                    ])
+                download.assert_not_called()
+                self.assertEqual(self.path.read_text(), wrong)
+
 
 if __name__ == "__main__":
     unittest.main()
