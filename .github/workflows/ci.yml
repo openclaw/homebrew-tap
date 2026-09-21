@@ -51,3 +51,4 @@ jobs:
           brew readall --os=all --arch=all openclaw/tap
           brew ruby tests/test_ocm_platforms.rb
           brew ruby tests/test_crabbox_install.rb
+          brew ruby tests/test_macos_asset_platforms.rb

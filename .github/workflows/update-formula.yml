@@ -21,7 +21,7 @@ on:
         required: true
         type: string
       assets:
-        description: "Optional exact four-platform asset name/SHA-256 JSON from a verified release inventory"
+        description: "Optional exact Darwin-pair or four-platform asset name/SHA-256 JSON from a verified release inventory"
         required: false
         type: string
       description:

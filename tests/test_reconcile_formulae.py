@@ -138,14 +138,14 @@ class ReconcileFormulaeTest(unittest.TestCase):
         ]
         expected = original.replace(f'version "{info.current_tag[1:]}"', f'version "{newer[1:]}"')
         for pair in reconcile_formulae.update_formula.formula_text.iter_url_sha_pairs(original):
-            url = pair.group("url").replace(f"/{info.current_tag}/", f"/{newer}/")
+            url = pair.url.replace(f"/{info.current_tag}/", f"/{newer}/")
             self.assertIn(url, urls)
-            expected = expected.replace(pair.group("url"), url).replace(
-                pair.group("sha"), hashlib.sha256(url.encode()).hexdigest(),
+            expected = expected.replace(pair.url, url).replace(
+                pair.sha, hashlib.sha256(url.encode()).hexdigest(),
             )
 
         download_order = [
-            pair.group("url").replace(f"/{info.current_tag}/", f"/{newer}/")
+            pair.url.replace(f"/{info.current_tag}/", f"/{newer}/")
             for pair in reconcile_formulae.update_formula.formula_text.iter_url_sha_pairs(original)
         ]
         self.assertCountEqual(download_order, urls)
@@ -274,10 +274,10 @@ class ReconcileFormulaeTest(unittest.TestCase):
                             self.assertEqual(len(downloads), 4)
                             expected = original
                             for match in reconcile_formulae.update_formula.formula_text.iter_url_sha_pairs(original):
-                                target = reconcile_formulae.update_formula.formula_text.classify_target(match.group("url"), {}, info.current_tag[1:])
+                                target = reconcile_formulae.update_formula.formula_text.classify_target(match.url, {}, info.current_tag[1:])
                                 url = next(url for url in downloads if url.endswith(f"_{target}.tar.gz"))
-                                expected = expected.replace(match.group("url"), url).replace(
-                                    match.group("sha"), hashlib.sha256(url.encode()).hexdigest(),
+                                expected = expected.replace(match.url, url).replace(
+                                    match.sha, hashlib.sha256(url.encode()).hexdigest(),
                                 )
                             if dry_run:
                                 self.assertIn("WOULD UPDATE crabbox", output.getvalue())

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Accept complete macOS architecture asset pairs while preserving four-platform handoffs, maintained formula content, and automatic reconciliation.
+
 - Install Crabbox runtime packs beside the CLI while preserving legacy archives and optional native JJ companions. [PR](https://github.com/openclaw/homebrew-tap/pull/61)
 
 - Install complete native JJ companion bundles from Crabbox releases while preserving legacy releases without companions. [PR](https://github.com/openclaw/homebrew-tap/pull/59)

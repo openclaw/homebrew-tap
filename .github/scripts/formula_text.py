@@ -4,9 +4,25 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
+from typing import NamedTuple, TypeVar
 
 
 RELEASE_TARGETS = ("darwin_amd64", "darwin_arm64", "linux_amd64", "linux_arm64")
+DARWIN_TARGETS = RELEASE_TARGETS[:2]
+
+
+class URLHashPair(NamedTuple):
+    url: str
+    sha: str
+    url_span: tuple[int, int]
+    sha_span: tuple[int, int]
+    target: str | None = None
+
+    def start(self) -> int:
+        return self.url_span[0]
+
+
+Match = TypeVar("Match", re.Match[str], URLHashPair)
 
 
 def ruby_string(value: str) -> str:
@@ -65,19 +81,34 @@ def classify_target(url: str, aliases: dict[str, str], version: str) -> str | No
     return None
 
 
-def iter_url_sha_pairs(text: str) -> list[re.Match[str]]:
-    return list(
-        re.finditer(
+def iter_url_sha_pairs(text: str) -> list[URLHashPair]:
+    pairs = [
+        URLHashPair(match.group("url"), match.group("sha"), match.span("url"), match.span("sha"))
+        for match in re.finditer(
             r'(?P<prefix>url ")(?P<url>[^"]+)'
             r'(?P<middle>"\n(?:[ \t]+version "[^"\n]+"\n)?\s+sha256 ")'
             r'(?P<sha>[0-9a-f]+)(?P<suffix>")',
             text,
             flags=re.MULTILINE,
         )
+    ]
+    # Architecture conditionals keep metadata defined on every Homebrew platform.
+    # Separate value spans let updates preserve both branches and intervening text.
+    conditional = (
+        r'url on_arch_conditional\(\s*arm: "(?P<arm_url>[^"\n]+)",\s*'
+        r'intel: "(?P<intel_url>[^"\n]+)",?\s*\)\n'
+        r'(?:[ \t]+version "[^"\n]+"\n)?\s*'
+        r'sha256 on_arch_conditional\(\s*arm: "(?P<arm_sha>[0-9a-f]+)",\s*'
+        r'intel: "(?P<intel_sha>[0-9a-f]+)",?\s*\)'
     )
+    for match in re.finditer(conditional, text):
+        for architecture, target in (("arm", "darwin_arm64"), ("intel", "darwin_amd64")):
+            url, sha = f"{architecture}_url", f"{architecture}_sha"
+            pairs.append(URLHashPair(match.group(url), match.group(sha), match.span(url), match.span(sha), target))
+    return sorted(pairs, key=lambda pair: pair.start())
 
 
-def primary_matches(text: str, matches: Iterable[re.Match[str]]) -> list[re.Match[str]]:
+def primary_matches(text: str, matches: Iterable[Match]) -> list[Match]:
     """Exclude resource stanzas while retaining offsets into the original formula."""
     resources = list(re.finditer(
         r'^(?P<indent>[ \t]+)resource [^\n]+\n.*?^(?P=indent)end[ \t]*(?:#[^\n]*)?(?:\n|$)',
@@ -90,7 +121,7 @@ def primary_matches(text: str, matches: Iterable[re.Match[str]]) -> list[re.Matc
     ]
 
 
-def iter_primary_url_sha_pairs(text: str) -> list[re.Match[str]]:
+def iter_primary_url_sha_pairs(text: str) -> list[URLHashPair]:
     return primary_matches(text, iter_url_sha_pairs(text))
 
 
@@ -105,7 +136,7 @@ def stanza_url_shape_count(text: str, stanza: str, version: str) -> int:
         return 0
 
     pairs = iter_url_sha_pairs(body)
-    return len({pair.group("url").replace("#{version}", version) for pair in pairs})
+    return len({pair.url.replace("#{version}", version) for pair in pairs})
 
 
 def uses_stanza_url_mode(text: str, version: str) -> bool:
@@ -152,7 +183,7 @@ def update_url_and_sha_in_stanza(text: str, stanza: str, url: str, digest: str, 
     if not pairs:
         raise SystemExit(f"expected at least one url/sha256 pair in {stanza} stanza")
 
-    expanded_urls = {pair.group("url").replace("#{version}", version) for pair in pairs}
+    expanded_urls = {pair.url.replace("#{version}", version) for pair in pairs}
     if len(expanded_urls) > 1:
         raise SystemExit(
             f"expected one source URL shape in {stanza} stanza, found {len(expanded_urls)}; "
@@ -161,19 +192,13 @@ def update_url_and_sha_in_stanza(text: str, stanza: str, url: str, digest: str, 
 
     replacements: list[tuple[int, int, str]] = []
     for pair in pairs:
-        existing_url = pair.group("url")
+        existing_url = pair.url
         replacement_url = url
         if "#{version}" in existing_url and existing_url.replace("#{version}", version) == url:
             replacement_url = existing_url
-        replacements.append(
-            (
-                pair.start(),
-                pair.end(),
-                f'{pair.group("prefix")}{replacement_url}{pair.group("middle")}{digest}{pair.group("suffix")}',
-            )
-        )
+        replacements.extend([(*pair.url_span, replacement_url), (*pair.sha_span, digest)])
 
-    for start, end, replacement in reversed(replacements):
+    for start, end, replacement in sorted(replacements, reverse=True):
         body = body[:start] + replacement + body[end:]
 
     return text[: match.start("body")] + body + text[match.end("body") :]
@@ -187,7 +212,9 @@ def ruby_class_name(formula: str) -> str:
     return "".join(part.capitalize() for part in re.split(r"[-_]+", formula) if part)
 
 
-def seed_formula(formula: str, repository: str, version: str, description: str, template: str) -> str:
+def seed_formula(
+    formula: str, repository: str, version: str, description: str, template: str, *, macos_only: bool = False,
+) -> str:
     def url(target: str) -> str:
         artifact = template.format(
             formula=formula,
@@ -198,10 +225,7 @@ def seed_formula(formula: str, repository: str, version: str, description: str, 
         return f"https://github.com/{repository}/releases/download/v#{{version}}/{artifact}"
 
     class_name = ruby_class_name(formula)
-    return f'''class {class_name} < Formula
-  desc {ruby_string(description)}
-  homepage "https://github.com/{repository}"
-  version "{version}"
+    metadata = f'''  version "{version}"
   license "MIT"
 
   on_macos do
@@ -223,7 +247,19 @@ def seed_formula(formula: str, repository: str, version: str, description: str, 
       sha256 "0000000000000000000000000000000000000000000000000000000000000000"
     end
   end
+'''
+    if macos_only:
+        metadata = f'''  url "{url("darwin_arm64")}"
+  version "{version}"
+  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  license "MIT"
 
+  depends_on :macos
+'''
+    return f'''class {class_name} < Formula
+  desc {ruby_string(description)}
+  homepage "https://github.com/{repository}"
+{metadata}
   def install
     bin.install "{formula}"
   end
@@ -520,7 +556,7 @@ def render_verified_target_formula(
         )
 
     actual_pairs = [
-        (match.group("url").replace("#{version}", version), match.group("sha"))
+        (match.url.replace("#{version}", version), match.sha)
         for match in iter_url_sha_pairs(text)
     ]
     expected_pairs = [
@@ -543,10 +579,32 @@ def render_explicit_target_formula(
 ) -> str:
     text = update_repository_metadata(text, repository)
     text = update_version(text, version)
+    if set(target_assets) == set(DARWIN_TARGETS):
+        if not re.search(r"^  depends_on (?:macos:|:macos\b)", text, re.MULTILINE):
+            raise SystemExit("Darwin-pair assets require a macOS-only formula")
+        pairs = iter_primary_url_sha_pairs(text)
+        replacements = []
+        if len(pairs) == 1 and re.search(r'^  url "', text, re.MULTILINE) and re.search(r'^  sha256 "', text, re.MULTILINE):
+            pair = pairs[0]
+            for span, index in ((pair.url_span, 0), (pair.sha_span, 1)):
+                arm, intel = (target_assets[target][index] for target in ("darwin_arm64", "darwin_amd64"))
+                expression = f'on_arch_conditional(\n    arm: "{arm}",\n    intel: "{intel}",\n  )'
+                replacements.append((span[0] - 1, span[1] + 1, expression))
+        elif (len(pairs) == 2 and {pair.target for pair in pairs} == set(DARWIN_TARGETS)
+              and re.search(r'^  url on_arch_conditional\(', text, re.MULTILINE)
+              and re.search(r'^  sha256 on_arch_conditional\(', text, re.MULTILINE)):
+            for pair in pairs:
+                url, digest = target_assets[pair.target]
+                replacements.extend([(*pair.url_span, url), (*pair.sha_span, digest)])
+        else:
+            raise SystemExit("Darwin-pair assets require one top-level archive or the canonical architecture pair")
+        for start, end, replacement in sorted(replacements, reverse=True):
+            text = text[:start] + replacement + text[end:]
+        return text
     for stanza in ("on_macos", "on_linux"):
         text = update_target_stanza(text, stanza, target_assets, "explicit-assets mode")
     actual_pairs = sorted(
-        (match.group("url").replace("#{version}", version), match.group("sha"))
+        (match.url.replace("#{version}", version), match.sha)
         for stanza in ("on_macos", "on_linux")
         for match in iter_url_sha_pairs(stanza_body(text, stanza) or "")
     )
