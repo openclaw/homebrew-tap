@@ -3,8 +3,8 @@ require "zlib"
 class OpenclawFacetime < Formula
   desc "Native FaceTime audio and call-control helpers for OpenClaw"
   homepage "https://github.com/openclaw/openclaw-facetime"
-  url "https://github.com/openclaw/openclaw-facetime/releases/download/v0.1.1/openclaw-facetime-macos-arm64.zip"
-  sha256 "bad95d3f9275b6b05d4a4d79edf572b40fe0a2fabeb68fc84c78fe427670b654"
+  url "https://github.com/openclaw/openclaw-facetime/releases/download/v0.1.2/openclaw-facetime-macos-arm64.zip"
+  sha256 "3abf30732eb8af207d931d3718113d6ed6520ec9a70d51c254a9c0cfeff8f578"
   license "MIT"
 
   depends_on arch: :arm64
