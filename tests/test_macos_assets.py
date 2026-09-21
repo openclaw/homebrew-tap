@@ -206,6 +206,66 @@ class MacOSAssetsTest(unittest.TestCase):
                 download.assert_not_called()
                 self.assertEqual(self.path.read_text(), wrong)
 
+    def test_explicit_single_archive_restores_universal_then_accepts_thin_again(self) -> None:
+        resource = (
+            '  resource "helper" do\n'
+            '    url "https://github.com/openclaw/Peekaboo/releases/download/v0.1.0/helper.tar.gz"\n'
+            f'    sha256 "{"a" * 64}"\n'
+            '  end\n\n'
+        )
+        for argument, value in (
+            ("--macos-artifact", "peekaboo-macos-universal.tar.gz"),
+            ("--artifact-url", "https://github.com/openclaw/Peekaboo/releases/download/{tag}/peekaboo-macos-universal.tar.gz"),
+        ):
+            for explicit_version in (False, True):
+                with self.subTest(argument=argument, explicit_version=explicit_version):
+                    original = self.original.replace("  def install", resource + "  def install")
+                    if explicit_version:
+                        original = original.replace('  sha256 "', '  version "4.4.0"\n  sha256 "', 1)
+                    self.path.write_text(original)
+                    self.update(macos_assets())
+                    arguments = [
+                        "--formula", "peekaboo", "--repository", "openclaw/Peekaboo", "--tag", "v4.4.0",
+                        argument, value,
+                    ]
+                    url = "https://github.com/openclaw/Peekaboo/releases/download/v4.4.0/peekaboo-macos-universal.tar.gz"
+                    with mock.patch.object(update_formula, "sha256", side_effect={url: "c" * 64}.__getitem__) as download:
+                        self.assertEqual(update_formula.main(arguments), 0)
+                    download.assert_called_once_with(url)
+                    restored = self.path.read_text()
+                    self.assertNotIn("on_arch_conditional", restored)
+                    pairs = update_formula.formula_text.iter_primary_url_sha_pairs(restored)
+                    self.assertEqual([(pair.url, pair.sha) for pair in pairs], [(url, "c" * 64)])
+                    self.assertEqual(restored.split('  license "MIT"', 1)[1], original.split('  license "MIT"', 1)[1])
+                    if explicit_version:
+                        self.assertIn('  version "4.4.0"\n', restored)
+                    with mock.patch.object(update_formula, "sha256", return_value="c" * 64):
+                        self.assertEqual(update_formula.main(arguments), 0)
+                    self.assertEqual(self.path.read_text(), restored)
+                    info = reconcile_formulae.parse_formula(self.path)
+                    self.assertEqual(info.current_tag, "v4.4.0")
+                    with mock.patch.object(update_formula, "sha256", return_value="d" * 64) as download:
+                        self.assertEqual(update_formula.main([
+                            "--formula", info.name, "--repository", info.repository, "--tag", "v4.4.2", *info.update_options,
+                        ]), 0)
+                    download.assert_called_once_with(url.replace("4.4.0", "4.4.2"))
+                    reconverted = self.update(macos_assets("4.4.3"), "4.4.3")
+                    self.assertIn("url on_arch_conditional(", reconverted)
+                    self.assertEqual(reconverted.split('  license "MIT"', 1)[1], original.split('  license "MIT"', 1)[1])
+
+    def test_universal_transition_download_failure_preserves_thin_formula(self) -> None:
+        first = self.update(macos_assets())
+        with mock.patch.object(update_formula, "sha256", side_effect=SystemExit("download failed")) as download:
+            with self.assertRaisesRegex(SystemExit, "download failed"):
+                update_formula.main([
+                    "--formula", "peekaboo", "--repository", "openclaw/Peekaboo", "--tag", "v4.4.0",
+                    "--macos-artifact", "peekaboo-macos-universal.tar.gz",
+                ])
+        download.assert_called_once_with(
+            "https://github.com/openclaw/Peekaboo/releases/download/v4.4.0/peekaboo-macos-universal.tar.gz",
+        )
+        self.assertEqual(self.path.read_text(), first)
+
 
 if __name__ == "__main__":
     unittest.main()
