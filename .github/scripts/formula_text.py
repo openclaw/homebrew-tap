@@ -9,6 +9,13 @@ from typing import NamedTuple, TypeVar
 
 RELEASE_TARGETS = ("darwin_amd64", "darwin_arm64", "linux_amd64", "linux_arm64")
 DARWIN_TARGETS = RELEASE_TARGETS[:2]
+CONDITIONAL_ARCHIVE_PATTERN = (
+    r'url on_arch_conditional\(\s*arm: "(?P<arm_url>[^"\n]+)",\s*'
+    r'intel: "(?P<intel_url>[^"\n]+)",?\s*\)\n'
+    r'(?P<version>[ \t]+version "[^"\n]+"\n)?\s*'
+    r'sha256 on_arch_conditional\(\s*arm: "(?P<arm_sha>[0-9a-f]+)",\s*'
+    r'intel: "(?P<intel_sha>[0-9a-f]+)",?\s*\)'
+)
 
 
 class URLHashPair(NamedTuple):
@@ -94,14 +101,7 @@ def iter_url_sha_pairs(text: str) -> list[URLHashPair]:
     ]
     # Architecture conditionals keep metadata defined on every Homebrew platform.
     # Separate value spans let updates preserve both branches and intervening text.
-    conditional = (
-        r'url on_arch_conditional\(\s*arm: "(?P<arm_url>[^"\n]+)",\s*'
-        r'intel: "(?P<intel_url>[^"\n]+)",?\s*\)\n'
-        r'(?:[ \t]+version "[^"\n]+"\n)?\s*'
-        r'sha256 on_arch_conditional\(\s*arm: "(?P<arm_sha>[0-9a-f]+)",\s*'
-        r'intel: "(?P<intel_sha>[0-9a-f]+)",?\s*\)'
-    )
-    for match in re.finditer(conditional, text):
+    for match in re.finditer(CONDITIONAL_ARCHIVE_PATTERN, text):
         for architecture, target in (("arm", "darwin_arm64"), ("intel", "darwin_amd64")):
             url, sha = f"{architecture}_url", f"{architecture}_sha"
             pairs.append(URLHashPair(match.group(url), match.group(sha), match.span(url), match.span(sha), target))
@@ -615,6 +615,16 @@ def render_explicit_target_formula(
 
 
 def update_top_level_url_and_sha(text: str, url: str, digest: str, version: str) -> str:
+    pairs = iter_primary_url_sha_pairs(text)
+    if len(pairs) == 2 and {pair.target for pair in pairs} == set(DARWIN_TARGETS):
+        matches = primary_matches(text, re.finditer(r"^  " + CONDITIONAL_ARCHIVE_PATTERN, text, re.MULTILINE))
+        if len(matches) != 1 or not re.search(r"^  sha256 on_arch_conditional\(", matches[0].group(), re.MULTILINE):
+            raise SystemExit("single-archive updates require a canonical top-level architecture pair")
+        match = matches[0]
+        # Explicit single-archive selection replaces the pair, so future
+        # reconciliation follows that archive instead of retired thin filenames.
+        replacement = f'  url "{url}"\n{match.group("version") or ""}  sha256 "{digest}"'
+        return text[:match.start()] + replacement + text[match.end():]
     text = replace_url_preserving_interpolation(
         text,
         r'^(?P<prefix>\s*url\s+")(?P<url>[^"]+)(?P<suffix>")',

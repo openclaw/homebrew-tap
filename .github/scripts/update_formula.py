@@ -794,7 +794,10 @@ def main(argv: list[str] | None = None) -> int:
     if has_macos != has_linux and not has_target_urls:
         raise SystemExit("formulae with only one platform stanza need manual updates")
 
-    if has_target_urls:
+    # Explicit single-archive input overrides the previous pair; ordinary
+    # reconciliation and explicit target templates retain their architecture mapping.
+    single_archive_requested = previous_pair is not None and (args.macos_artifact or args.artifact_url) and not args.artifact_template
+    if has_target_urls and not single_archive_requested:
         archives = [
             match for match, _ in classified_pairs
             if re.fullmatch(r'https://github\.com/[^"\n]+/archive/refs/tags/[^"\n]+', match.url)
