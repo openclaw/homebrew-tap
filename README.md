@@ -159,9 +159,13 @@ requirement to reject unsupported installs rather than leaving platform metadata
 ### Asset handoff contracts
 
 Fleet release workflows use the optional `assets` JSON contract: exactly one `name` and `sha256`
-for each Darwin/Linux amd64/arm64 target. The updater renders those names and hashes verbatim,
-downloads all four public release assets, and refuses to commit on any digest mismatch. Legacy
-multi-target updates preserve smaller target inventories and resources, but reject unrecognized
+for either the `darwin_amd64`/`darwin_arm64` pair or all four Darwin/Linux amd64/arm64 targets.
+Partial pairs and other target sets are rejected. The updater renders those names and hashes
+verbatim, downloads every supplied public release asset, and refuses to commit on any digest mismatch.
+Darwin pairs require a macOS-only formula and use top-level architecture conditionals so metadata
+remains loadable on Linux. Existing macOS requirements and installation instructions are preserved;
+new formulae declare `depends_on :macos`. Reconciliation follows both architecture URLs on later releases.
+Legacy multi-target updates preserve smaller target inventories and resources, but reject unrecognized
 primary release assets before downloading or writing. Custom target names need `target_aliases`. Omitting
 `assets` preserves the legacy template and filename-guessing behavior for older callers.
 

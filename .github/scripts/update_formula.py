@@ -149,12 +149,14 @@ def parse_explicit_assets(value: str | None) -> dict[str, dict[str, str]] | None
         payload = json.loads(value)
     except json.JSONDecodeError as error:
         raise SystemExit(f"invalid assets JSON: {error.msg}") from error
-    if not isinstance(payload, dict) or set(payload) != set(RELEASE_TARGETS):
-        raise SystemExit("assets JSON must contain exactly darwin_amd64, darwin_arm64, linux_amd64, and linux_arm64")
+    if not isinstance(payload, dict) or set(payload) not in (set(formula_text.DARWIN_TARGETS), set(RELEASE_TARGETS)):
+        raise SystemExit("assets JSON must contain exactly the Darwin pair or all four Darwin/Linux targets")
 
     assets: dict[str, dict[str, str]] = {}
     names: set[str] = set()
     for target in RELEASE_TARGETS:
+        if target not in payload:
+            continue
         item = payload[target]
         if not isinstance(item, dict) or set(item) != {"name", "sha256"}:
             raise SystemExit(f"assets JSON {target} must contain exactly name and sha256")
@@ -181,8 +183,7 @@ def explicit_asset_url(repository: str, tag: str, name: str) -> str:
 
 
 def verify_explicit_assets(repository: str, tag: str, assets: dict[str, dict[str, str]]) -> None:
-    for target in RELEASE_TARGETS:
-        item = assets[target]
+    for target, item in assets.items():
         url = explicit_asset_url(repository, tag, item["name"])
         observed = sha256(url)
         if observed != item["sha256"]:
@@ -407,6 +408,28 @@ def parse_target_aliases(value: str | None) -> dict[str, str]:
     return aliases
 
 
+def darwin_pair_release_assets(text: str, repository: str) -> tuple[str, dict[str, str]] | None:
+    pairs = formula_text.iter_primary_url_sha_pairs(text)
+    if not any(pair.target for pair in pairs):
+        return None
+    if len(pairs) != 2 or {pair.target for pair in pairs} != set(formula_text.DARWIN_TARGETS):
+        raise SystemExit("expected a complete encoded Darwin pair")
+    prefix = f"https://github.com/{repository}/releases/download/"
+    tags: set[str] = set()
+    assets: dict[str, str] = {}
+    for pair in pairs:
+        if not pair.url.lower().startswith(prefix.lower()):
+            raise SystemExit("Darwin pair URLs must use the source repository's releases")
+        tag, separator, asset = pair.url[len(prefix):].partition("/")
+        if not separator:
+            raise SystemExit("Darwin pair release URL has no asset name")
+        tags.add(validate_release_tag(tag))
+        assets[pair.target] = validate_artifact_token(urllib.parse.unquote(asset), "Darwin pair asset")
+    if len(tags) != 1:
+        raise SystemExit("Darwin pair release URLs must use the same tag")
+    return tags.pop(), assets
+
+
 def prepare_cask_update(cask: str, repository: str, tag: str, artifact: str) -> tuple[pathlib.Path, str]:
     validate_artifact_token(artifact, "cask artifact")
     version = tag[1:] if tag.startswith("v") else tag
@@ -452,7 +475,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--tag", required=True, help="Release tag, e.g. v0.7.0")
     parser.add_argument("--repository", required=True, help="Source repository, e.g. steipete/wacli")
-    parser.add_argument("--assets-json", help="Exact four-platform asset name/SHA-256 JSON")
+    parser.add_argument("--assets-json", help="Exact Darwin-pair or four-platform asset name/SHA-256 JSON")
     parser.add_argument(
         "--description",
         help="Formula description used when creating a missing formula",
@@ -695,6 +718,7 @@ def main(argv: list[str] | None = None) -> int:
                 version,
                 description,
                 "{formula}_{version}_{target}.tar.gz",
+                macos_only=set(explicit_assets) == set(formula_text.DARWIN_TARGETS),
             )
         verify_explicit_assets(args.repository, args.tag, explicit_assets)
         text = formula_text.render_explicit_target_formula(
@@ -730,12 +754,13 @@ def main(argv: list[str] | None = None) -> int:
         description = args.description or f"{args.formula} command-line tool"
         text = formula_text.seed_formula(args.formula, args.repository, version, description, template)
         created = True
+    previous_pair = darwin_pair_release_assets(text, args.repository)
     text = formula_text.update_repository_metadata(text, args.repository)
     text = formula_text.update_version(text, version)
     has_macos = formula_text.has_stanza(text, "on_macos")
     has_linux = formula_text.has_stanza(text, "on_linux")
     url_sha_pairs = formula_text.iter_primary_url_sha_pairs(text)
-    classified_pairs = [(match, formula_text.classify_target(match.group("url"), target_aliases, version)) for match in url_sha_pairs]
+    classified_pairs = [(match, match.target or formula_text.classify_target(match.url, target_aliases, version)) for match in url_sha_pairs]
     target_url_count = sum(1 for _, target in classified_pairs if target)
     has_target_urls = target_url_count > 1 and not formula_text.uses_stanza_url_mode(text, version)
     if args.artifact_template and not has_target_urls and formula_text.uses_stanza_url_mode(text, version):
@@ -749,7 +774,7 @@ def main(argv: list[str] | None = None) -> int:
             target_aliases,
         )
         url_sha_pairs = formula_text.iter_primary_url_sha_pairs(text)
-        classified_pairs = [(match, formula_text.classify_target(match.group("url"), target_aliases, version)) for match in url_sha_pairs]
+        classified_pairs = [(match, match.target or formula_text.classify_target(match.url, target_aliases, version)) for match in url_sha_pairs]
         target_url_count = sum(1 for _, target in classified_pairs if target)
         has_target_urls = target_url_count > 1
     elif args.artifact_template and not has_target_urls:
@@ -763,7 +788,7 @@ def main(argv: list[str] | None = None) -> int:
             target_aliases,
         )
         url_sha_pairs = formula_text.iter_primary_url_sha_pairs(text)
-        classified_pairs = [(match, formula_text.classify_target(match.group("url"), target_aliases, version)) for match in url_sha_pairs]
+        classified_pairs = [(match, match.target or formula_text.classify_target(match.url, target_aliases, version)) for match in url_sha_pairs]
         target_url_count = sum(1 for _, target in classified_pairs if target)
         has_target_urls = target_url_count > 1
     if has_macos != has_linux and not has_target_urls:
@@ -772,7 +797,7 @@ def main(argv: list[str] | None = None) -> int:
     if has_target_urls:
         archives = [
             match for match, _ in classified_pairs
-            if re.fullmatch(r'https://github\.com/[^"\n]+/archive/refs/tags/[^"\n]+', match.group("url"))
+            if re.fullmatch(r'https://github\.com/[^"\n]+/archive/refs/tags/[^"\n]+', match.url)
         ]
         if args.linux_url and len(archives) > 1:
             raise SystemExit("expected at most one source archive URL/checksum pair")
@@ -780,7 +805,7 @@ def main(argv: list[str] | None = None) -> int:
             if target or (args.linux_url and match in archives):
                 continue
             raise SystemExit(
-                f"unclassified release asset in {path}: {match.group('url')}; "
+                f"unclassified release asset in {path}: {match.url}; "
                 "supply --target-aliases for custom target names"
             )
         if target_url_count >= len(RELEASE_TARGETS):
@@ -792,26 +817,29 @@ def main(argv: list[str] | None = None) -> int:
         for match, target in classified_pairs:
             if not target:
                 continue
-            artifact_target = target_aliases.get(target, target)
-            artifact = template.format(
-                formula=args.formula,
-                version=version,
-                tag=args.tag,
-                target=artifact_target,
-            )
-            url = f"https://github.com/{args.repository}/releases/download/{args.tag}/{artifact}"
+            # Conditional branches own their target identity; filenames need no
+            # architecture marker or shared template to survive reconciliation.
+            if previous_pair is not None and not args.artifact_template:
+                previous_tag, assets = previous_pair
+                artifact = assets[target].replace(previous_tag.removeprefix("v"), version)
+                url = explicit_asset_url(args.repository, args.tag, artifact)
+            else:
+                artifact_target = target_aliases.get(target, target)
+                artifact = template.format(
+                    formula=args.formula,
+                    version=version,
+                    tag=args.tag,
+                    target=artifact_target,
+                )
+                url = f"https://github.com/{args.repository}/releases/download/{args.tag}/{artifact}"
             digest = sha256(url)
-            existing_url = match.group("url")
+            existing_url = match.url
             replacement_url = url
             if "#{version}" in existing_url and existing_url.replace("#{version}", version) == url:
                 replacement_url = existing_url
-            replacement = (
-                f'{match.group("prefix")}{replacement_url}'
-                f'{match.group("middle")}{digest}{match.group("suffix")}'
-            )
-            replacements.append((match.start(), match.end(), replacement))
+            replacements.extend([(*match.url_span, replacement_url), (*match.sha_span, digest)])
             print(f"{target}: {digest}  {url}")
-        for start, end, replacement in reversed(replacements):
+        for start, end, replacement in sorted(replacements, reverse=True):
             text = text[:start] + replacement + text[end:]
 
         if args.linux_url:

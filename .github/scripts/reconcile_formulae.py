@@ -118,7 +118,7 @@ def source_release_urls(text: str, repository: str, version: str) -> list[tuple[
     prefix = f"https://github.com/{repository}/releases/download/"
     urls: list[tuple[str, str]] = []
     for pair in formula_text.iter_primary_url_sha_pairs(text):
-        url = pair.group("url").replace("#{version}", version)
+        url = pair.url.replace("#{version}", version)
         if not url.lower().startswith(prefix.lower()):
             continue
         remainder = url[len(prefix) :]
@@ -145,6 +145,12 @@ def infer_update_options(
     release_urls = source_release_urls(text, repository, version)
     if not release_urls:
         raise ValueError("formula has no source-repository release asset URL/checksum pair")
+
+    pair = update_formula.darwin_pair_release_assets(text, repository)
+    if pair is not None:
+        if pair[0] != current_tag:
+            raise ValueError(f"release URL tag {pair[0]!r} does not match current tag {current_tag!r}")
+        return ()
 
     if len(release_urls) == 1:
         tag, asset = release_urls[0]

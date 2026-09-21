@@ -272,11 +272,11 @@ class UpdateFormulaTest(unittest.TestCase):
         assets = crabbox_assets()
         expected = original
         for match in update_formula.formula_text.iter_url_sha_pairs(original):
-            target = update_formula.formula_text.classify_target(match.group("url"), {}, "1.2.3")
+            target = update_formula.formula_text.classify_target(match.url, {}, "1.2.3")
             item = assets[target]
-            expected = expected.replace(match.group("url"), update_formula.explicit_asset_url(
+            expected = expected.replace(match.url, update_formula.explicit_asset_url(
                 "openclaw/crabbox", "v1.2.3", item["name"],
-            )).replace(match.group("sha"), item["sha256"])
+            )).replace(match.sha, item["sha256"])
         urls = {
             update_formula.explicit_asset_url("openclaw/crabbox", "v1.2.3", item["name"]): target.encode()
             for target, item in assets.items()
@@ -382,7 +382,7 @@ class UpdateFormulaTest(unittest.TestCase):
                 os.chdir(previous_directory)
             pairs = update_formula.formula_text.iter_url_sha_pairs(path.read_text())
             self.assertCountEqual(
-                [(match.group("url"), match.group("sha")) for match in pairs],
+                [(match.url, match.sha) for match in pairs],
                 [(update_formula.explicit_asset_url("openclaw/crabbox", "v1.2.3", item["name"]), item["sha256"])
                  for item in crabbox_assets().values()],
             )
@@ -504,7 +504,7 @@ class UpdateFormulaTest(unittest.TestCase):
         major, minor, patch = version_match.groups()
         version = f"{major}.{minor}.{int(patch) + 1}"
         hashes = {target: str(index) * 64 for index, target in enumerate(update_formula.RELEASE_TARGETS, 1)}
-        old_pairs = {(match.group("url"), match.group("sha")) for match in update_formula.formula_text.iter_url_sha_pairs(formula)}
+        old_pairs = {(match.url, match.sha) for match in update_formula.formula_text.iter_url_sha_pairs(formula)}
         metadata = r'(?m)^\s*(?:version|url|sha256) "[^"\n]+"$'
 
         for mode in ("explicit-assets", "legacy-template", "verified-hashes"):
@@ -558,7 +558,7 @@ class UpdateFormulaTest(unittest.TestCase):
                     verify_tag.assert_not_called()
                     self.assertCountEqual([call.args[0] for call in download.call_args_list], expected)
                 pairs = [
-                    (match.group("url").replace("#{version}", version), match.group("sha"))
+                    (match.url.replace("#{version}", version), match.sha)
                     for match in update_formula.formula_text.iter_url_sha_pairs(updated)
                 ]
                 self.assertCountEqual(pairs, expected.items())
@@ -1264,7 +1264,7 @@ end
             '  version "0.43.0"\n  license "MIT"',
         ).replace("example_0.43.0_linux_arm64.tar.gz", "example_0.43.0_mystery.tar.gz")
         classified = [
-            update_formula.formula_text.classify_target(match.group("url"), {}, "0.43.0")
+            update_formula.formula_text.classify_target(match.url, {}, "0.43.0")
             for match in update_formula.formula_text.iter_url_sha_pairs(formula)
         ]
         self.assertEqual(classified.count(None), 1)
