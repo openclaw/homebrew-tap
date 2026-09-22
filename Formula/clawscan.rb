@@ -1,26 +1,26 @@
 class Clawscan < Formula
   desc "Agent-skill security scanner harness for ClawHub"
   homepage "https://github.com/openclaw/clawscan"
-  version "0.1.8"
+  version "0.2.0"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/clawscan/releases/download/v0.1.8/clawscan_v0.1.8_darwin_arm64.tar.gz"
-      sha256 "f754cb08faa963083486994bdf1bed78e276d9c833d33b424c6e50c49aafaa0d"
+      url "https://github.com/openclaw/clawscan/releases/download/v0.2.0/clawscan_v0.2.0_darwin_arm64.tar.gz"
+      sha256 "9ef32ab2afa16ddba14189148c028e74ca6da64e4b4702da41929ed4a9baf128"
     else
-      url "https://github.com/openclaw/clawscan/releases/download/v0.1.8/clawscan_v0.1.8_darwin_amd64.tar.gz"
-      sha256 "ea99867fb0b50679a57d09958c10dca5b3f3584f108696b02c07380500f6b5b2"
+      url "https://github.com/openclaw/clawscan/releases/download/v0.2.0/clawscan_v0.2.0_darwin_amd64.tar.gz"
+      sha256 "3b15b27b7dea2b2c48531181cd95f68bf9f908e063d18ca0b7552d94f9ace933"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/clawscan/releases/download/v0.1.8/clawscan_v0.1.8_linux_arm64.tar.gz"
-      sha256 "151844c915548410341bac575a3a77eaeb09dc40b4ccfbd00f99a93cace40a3c"
+      url "https://github.com/openclaw/clawscan/releases/download/v0.2.0/clawscan_v0.2.0_linux_arm64.tar.gz"
+      sha256 "fefbaadde4e8ac3d711199acc2148238009433c6fc0e02c293c0c2c18b1b5933"
     else
-      url "https://github.com/openclaw/clawscan/releases/download/v0.1.8/clawscan_v0.1.8_linux_amd64.tar.gz"
-      sha256 "8332479963a1629211e72d41806b3050da27a35ca7597e1012c36f8880fc7394"
+      url "https://github.com/openclaw/clawscan/releases/download/v0.2.0/clawscan_v0.2.0_linux_amd64.tar.gz"
+      sha256 "ee8f3f970930e3e8c15c6e132b30255bd0ff07c3295e481d7cf75d95aa76f19a"
     end
   end
 
