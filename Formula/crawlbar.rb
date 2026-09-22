@@ -1,8 +1,14 @@
 class Crawlbar < Formula
   desc "macOS menu bar control plane for local-first crawler CLIs"
   homepage "https://github.com/openclaw/crawlbar"
-  url "https://github.com/openclaw/crawlbar/releases/download/v0.5.0/CrawlBar-v0.5.0-macos.zip"
-  sha256 "ffe8c3c83794100a3c820f96af0a4dd76fabff7e110daeb9e55a9ce2c5e6a258"
+  url on_arch_conditional(
+    arm:   "https://github.com/openclaw/crawlbar/releases/download/v0.6.0/CrawlBar-v0.6.0-macos-arm64.zip",
+    intel: "https://github.com/openclaw/crawlbar/releases/download/v0.6.0/CrawlBar-v0.6.0-macos-x86_64.zip",
+  )
+  sha256 on_arch_conditional(
+    arm:   "70d0be07dbbd990b6820093f3038bd9031c9cd582b8d47f5332f0f425c1c25a9",
+    intel: "bf8542c2cf12ddbd6b88f4af676f101c8455af72d3d4da6500a7cde6ad34cf79",
+  )
   license "MIT"
 
   depends_on macos: :sonoma
@@ -31,7 +37,10 @@ class Crawlbar < Formula
   test do
     app = prefix/"CrawlBar.app"
     signature = shell_output("codesign -d --verbose=4 #{app} 2>&1")
-    architectures = shell_output("lipo -archs #{app}/Contents/MacOS/CrawlBar")
+    expected_architectures = [Hardware::CPU.arm? ? "arm64" : "x86_64"]
+    %w[MacOS/CrawlBar Helpers/crawlbar].each do |binary|
+      assert_equal expected_architectures, shell_output("lipo -archs #{app}/Contents/#{binary}").split.sort
+    end
     bundle_id = shell_output("/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' #{app}/Contents/Info.plist")
     bundle_version = shell_output(
       "/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' #{app}/Contents/Info.plist",
@@ -46,8 +55,6 @@ class Crawlbar < Formula
     assert_match "Authority=Developer ID Application: OpenClaw Foundation (FWJYW4S8P8)", signature
     assert_match "TeamIdentifier=FWJYW4S8P8", signature
     assert_match "flags=0x10000(runtime)", signature
-    assert_match "arm64", architectures
-    assert_match "x86_64", architectures
     system "codesign", "--verify", "--deep", "--strict", app
     system "spctl", "--assess", "--type", "execute", app
     system "xcrun", "stapler", "validate", app

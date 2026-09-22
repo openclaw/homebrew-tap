@@ -72,5 +72,5 @@ Dir.mktmpdir("macos-asset-platforms-") do |directory|
     end
     path.to_s
   end
-  system HOMEBREW_BREW_FILE, "style", "--only-cops=FormulaAudit/ComponentsOrder", *paths, exception: true
+  system HOMEBREW_BREW_FILE, "style", "--only-cops=FormulaAudit/ComponentsOrder,Layout/HashAlignment", *paths, exception: true
 end

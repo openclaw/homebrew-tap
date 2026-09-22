@@ -10,11 +10,11 @@ from typing import NamedTuple, TypeVar
 RELEASE_TARGETS = ("darwin_amd64", "darwin_arm64", "linux_amd64", "linux_arm64")
 DARWIN_TARGETS = RELEASE_TARGETS[:2]
 CONDITIONAL_ARCHIVE_PATTERN = (
-    r'url on_arch_conditional\(\s*arm: "(?P<arm_url>[^"\n]+)",\s*'
-    r'intel: "(?P<intel_url>[^"\n]+)",?\s*\)\n'
+    r'url on_arch_conditional\(\s*arm:[ \t]*"(?P<arm_url>[^"\n]+)",\s*'
+    r'intel:[ \t]*"(?P<intel_url>[^"\n]+)",?\s*\)\n'
     r'(?P<version>[ \t]+version "[^"\n]+"\n)?\s*'
-    r'sha256 on_arch_conditional\(\s*arm: "(?P<arm_sha>[0-9a-f]+)",\s*'
-    r'intel: "(?P<intel_sha>[0-9a-f]+)",?\s*\)'
+    r'sha256 on_arch_conditional\(\s*arm:[ \t]*"(?P<arm_sha>[0-9a-f]+)",\s*'
+    r'intel:[ \t]*"(?P<intel_sha>[0-9a-f]+)",?\s*\)'
 )
 
 
@@ -588,7 +588,7 @@ def render_explicit_target_formula(
             pair = pairs[0]
             for span, index in ((pair.url_span, 0), (pair.sha_span, 1)):
                 arm, intel = (target_assets[target][index] for target in ("darwin_arm64", "darwin_amd64"))
-                expression = f'on_arch_conditional(\n    arm: "{arm}",\n    intel: "{intel}",\n  )'
+                expression = f'on_arch_conditional(\n    arm:   "{arm}",\n    intel: "{intel}",\n  )'
                 replacements.append((span[0] - 1, span[1] + 1, expression))
         elif (len(pairs) == 2 and {pair.target for pair in pairs} == set(DARWIN_TARGETS)
               and re.search(r'^  url on_arch_conditional\(', text, re.MULTILINE)

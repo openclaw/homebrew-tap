@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Preserve automatic updates after Homebrew formats architecture-specific URL/checksum pairs, and render aligned pairs directly.
+
+- Update CrawlBar to 0.6.0 with smaller signed, notarized downloads for Apple Silicon and Intel Macs.
+
 - Restore explicit single-archive updates after a macOS formula has switched to architecture-specific archives.
 
 - Accept complete macOS architecture asset pairs while preserving four-platform handoffs, maintained formula content, and automatic reconciliation.

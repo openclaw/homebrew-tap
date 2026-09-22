@@ -86,7 +86,9 @@ class ReconcileFormulaeTest(unittest.TestCase):
             with self.subTest(formula=path.stem):
                 info = reconcile_formulae.parse_formula(path)
                 self.assertEqual(info.name, path.stem)
-                self.assertTrue(info.update_options)
+                if not info.update_options:
+                    self.assertIsNotNone(reconcile_formulae.update_formula.darwin_pair_release_assets(
+                        path.read_text(), info.repository))
 
     def test_resources_do_not_control_release_inference_or_get_updated(self) -> None:
         resource = (
