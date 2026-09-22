@@ -1,0 +1,64 @@
+name: CrawlBar Install
+
+on:
+  pull_request:
+    paths:
+      - Formula/crawlbar.rb
+      - .github/workflows/crawlbar-smoke.yml
+  push:
+    branches: [main]
+    paths:
+      - Formula/crawlbar.rb
+      - .github/workflows/crawlbar-smoke.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  install:
+    name: CrawlBar install (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Audit, install, and test the checked-out formula
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "$EXPECTED_ARCH"
+          formula=openclaw/tap/crawlbar
+          brew tap --custom-remote openclaw/tap "$GITHUB_WORKSPACE"
+          tap="$(brew --repository openclaw/tap)"
+          test "$(git -C "$tap" rev-parse HEAD)" = "$(git rev-parse HEAD)"
+          cmp Formula/crawlbar.rb "$tap/Formula/crawlbar.rb"
+          brew audit --strict "$formula"
+          brew install --build-from-source "$formula"
+          app="$(brew --prefix "$formula")/CrawlBar.app"
+          codesign --verify --deep --strict "$app"
+          brew test "$formula"
+          payload="$RUNNER_TEMP/crawlbar-release-payload"
+          mkdir "$payload"
+          ditto -x -k "$(brew --cache "$formula")" "$payload"
+          for binary in MacOS/CrawlBar Helpers/crawlbar; do
+            test "$(lipo -archs "$app/Contents/$binary")" = "$EXPECTED_ARCH"
+            cmp "$payload/CrawlBar.app/Contents/$binary" "$app/Contents/$binary"
+          done

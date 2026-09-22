@@ -149,6 +149,8 @@ preserves the published executable bytes, including the macOS Developer ID signa
 Changes to the OCM formula or its updater run installed-Homebrew tests on macOS ARM64,
 macOS x86_64, and Linux x86_64, using the checked-out formula rather than the public tap.
 
+CrawlBar formula updates also audit, install, and test the checked-out formula on clean Apple Silicon and Intel macOS hosts, verifying that both signed executable payloads stay unchanged.
+
 Pull requests and updates to `main` run the automation tests and validate Ruby syntax
 and Homebrew style for every formula and cask. Superseded pull-request validation runs
 are canceled, while main-branch checks finish independently. They also load the checked-out
