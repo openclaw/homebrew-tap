@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import tempfile
 import unittest
 from unittest import mock
@@ -69,6 +70,21 @@ class MacOSAssetsTest(unittest.TestCase):
         for target, item in macos_assets().items():
             expected = expected.replace(item["sha256"], macos_assets("4.4.2")[target]["sha256"])
         self.assertEqual(second, expected)
+
+    def test_formatted_pair_can_be_reconciled_and_updated(self) -> None:
+        first = self.update(macos_assets())
+        for arm_spacing, intel_spacing in (("   ", " "), ("\t", "\t")):
+            with self.subTest(arm=arm_spacing, intel=intel_spacing):
+                formatted = re.sub(r'arm:[ \t]*(?=")', "arm:" + arm_spacing, first)
+                formatted = re.sub(r'intel:[ \t]*(?=")', "intel:" + intel_spacing, formatted)
+                self.path.write_text(formatted)
+                info = reconcile_formulae.parse_formula(self.path)
+                self.assertEqual(info.current_tag, "v4.4.1")
+                self.assertEqual(info.update_options, ())
+                expected = formatted.replace("/v4.4.1/", "/v4.4.2/")
+                for target, item in macos_assets().items():
+                    expected = expected.replace(item["sha256"], macos_assets("4.4.2")[target]["sha256"])
+                self.assertEqual(self.update(macos_assets("4.4.2"), "4.4.2"), expected)
 
     def test_digest_failure_leaves_existing_or_missing_formula_untouched(self) -> None:
         assets = macos_assets()
