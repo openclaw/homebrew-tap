@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Update AXorcist to 0.2.0 with raw-input and parser fixes and architecture-specific signed macOS downloads.
+
 - Preserve automatic updates after Homebrew formats architecture-specific URL/checksum pairs, and render aligned pairs directly.
 
 - Update CrawlBar to 0.6.0 with smaller signed, notarized downloads for Apple Silicon and Intel Macs.
