@@ -53,6 +53,27 @@ end
 
 
 class ReconcileFormulaeTest(unittest.TestCase):
+    def test_livecheck_skip_preserves_retired_formula_without_release_lookup(self) -> None:
+        original = formula_text().replace(
+            "  on_macos do\n",
+            '  livecheck do\n    skip "CLI retired upstream"\n  end\n\n  on_macos do\n',
+        )
+        directory, root = self.make_tap(original)
+        self.addCleanup(directory.cleanup)
+        lookup = mock.Mock(side_effect=AssertionError("retired formula must not query releases"))
+        updater = mock.Mock(side_effect=AssertionError("retired formula must not update"))
+        summary = reconcile_formulae.reconcile(root, None, False, lookup, updater)
+        self.assertEqual(summary.skipped, 1)
+        self.assertEqual(summary.failed, 0)
+        self.assertEqual((root / "Formula/example.rb").read_text(), original)
+        lookup.assert_not_called()
+        updater.assert_not_called()
+
+    def test_resource_livecheck_skip_does_not_skip_the_formula(self) -> None:
+        text = '  resource "helper" do\n    livecheck do\n      skip "helper retired"\n    end\n  end\n'
+        self.assertIsNone(reconcile_formulae.livecheck_skip_reason(text))
+        self.assertIsNone(reconcile_formulae.livecheck_skip_reason('  # skip "not a directive"\n'))
+
     def make_tap(self, text: str = formula_text()) -> tuple[tempfile.TemporaryDirectory[str], pathlib.Path]:
         directory = tempfile.TemporaryDirectory()
         root = pathlib.Path(directory.name)

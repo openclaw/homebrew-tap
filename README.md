@@ -135,7 +135,7 @@ and [gh shim migration to Octopool](https://gitcrawl.sh/gh-shim/).
 `Reconcile Formulae` is the self-healing fallback for formulae. Every three hours
 it derives each source repository from the formula's GitHub `homepage`, compares the formula with that repository's latest
 stable published release, and runs the same updater and checksum-download logic when the release is
-newer. Invalid formula metadata is reported and skipped so later formulae are still inspected.
+newer. Formulae with an explicit `livecheck` `skip` are reported with their reason and retain their last supported version. The retired `crabfleet` fleet-management CLI stays at 0.3.1; the Linux desktop connector introduced in 0.4.0 is a different program. Invalid formula metadata is reported and skipped so later formulae are still inspected.
 Resource URLs are excluded from release inference, including resources from the same
 source repository; their pinned versions and checksums remain unchanged.
 It never downgrades, skips drafts and prereleases, and makes no commit when every formula is

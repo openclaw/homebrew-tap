@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Honor formula livecheck skips during reconciliation and retain the retired Crabfleet CLI at its last supported release.
+
 - Update AXorcist to 0.2.0 with raw-input and parser fixes and architecture-specific signed macOS downloads.
 
 - Preserve automatic updates after Homebrew formats architecture-specific URL/checksum pairs, and render aligned pairs directly.
