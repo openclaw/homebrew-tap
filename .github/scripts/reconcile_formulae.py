@@ -334,6 +334,18 @@ def formula_paths(root: pathlib.Path, selected: str | None) -> list[pathlib.Path
     return sorted((root / "Formula").glob("*.rb"))
 
 
+def livecheck_skip_reason(text: str) -> str | None:
+    blocks = formula_text.primary_matches(text, re.finditer(
+        r'^(?P<indent>[ \t]+)livecheck do[ \t]*\n(?P<body>.*?)^(?P=indent)end[ \t]*$',
+        text, re.MULTILINE | re.DOTALL,
+    ))
+    for block in blocks:
+        skip = re.search(r'^\s*skip(?:[ \t]+"([^"\n]+)")?[ \t]*$', block.group("body"), re.MULTILINE)
+        if skip:
+            return skip.group(1) or "formula livecheck is disabled"
+    return None
+
+
 def reconcile(
     root: pathlib.Path,
     selected: str | None,
@@ -345,6 +357,11 @@ def reconcile(
     for path in formula_paths(root, selected):
         summary.scanned += 1
         try:
+            skip_reason = livecheck_skip_reason(path.read_text())
+            if skip_reason:
+                summary.skipped += 1
+                print(f"SKIP {path.stem}: {skip_reason}")
+                continue
             info = parse_formula(path)
         except (OSError, ValueError) as error:
             summary.skipped += 1

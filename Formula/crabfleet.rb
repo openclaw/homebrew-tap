@@ -4,6 +4,10 @@ class Crabfleet < Formula
   version "0.3.1"
   license "MIT"
 
+  livecheck do
+    skip "The fleet-management CLI was retired in v0.4.0; later releases ship a separate Linux desktop connector"
+  end
+
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/openclaw/crabfleet/releases/download/v#{version}/crabfleet_#{version}_darwin_arm64.tar.gz"
