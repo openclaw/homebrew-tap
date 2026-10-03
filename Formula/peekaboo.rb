@@ -2,12 +2,12 @@ class Peekaboo < Formula
   desc "Lightning-fast macOS screenshots & AI vision analysis"
   homepage "https://github.com/openclaw/Peekaboo"
   url on_arch_conditional(
-    arm:   "https://github.com/openclaw/Peekaboo/releases/download/v4.6.0/peekaboo-macos-arm64.tar.gz",
-    intel: "https://github.com/openclaw/Peekaboo/releases/download/v4.6.0/peekaboo-macos-x86_64.tar.gz",
+    arm:   "https://github.com/openclaw/Peekaboo/releases/download/v4.7.0/peekaboo-macos-arm64.tar.gz",
+    intel: "https://github.com/openclaw/Peekaboo/releases/download/v4.7.0/peekaboo-macos-x86_64.tar.gz",
   )
   sha256 on_arch_conditional(
-    arm:   "bf81112fe569e1a2cbc6666e6adb45ab1fd11a1f1a5c1708522d1aff4c526915",
-    intel: "65241415e04cce520b3aa979c496cc7b9e40125abb02bfbc6339561cff52e388",
+    arm:   "495e928659173c383cd80d45763241e57653f71eee0422eea0caa8d00271c19d",
+    intel: "0079d1496d83e2100fcba818b90fa29be387d492e8b52df49c5632a397f31112",
   )
   license "MIT"
 
