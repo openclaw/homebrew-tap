@@ -1,26 +1,26 @@
 class Discrawl < Formula
   desc "Mirror Discord into SQLite and search server history locally"
   homepage "https://github.com/openclaw/discrawl"
-  version "0.15.6"
+  version "0.15.7"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/discrawl/releases/download/v0.15.6/discrawl_0.15.6_darwin_arm64.tar.gz"
-      sha256 "8c2679c5eab5385832a142091ecdd44f0fc05757c76d09b66a1ec67d7713ebed"
+      url "https://github.com/openclaw/discrawl/releases/download/v0.15.7/discrawl_0.15.7_darwin_arm64.tar.gz"
+      sha256 "c0bba57d796f2e0c1b17010f12ee4cf3f61c351e36dc269a2aa65346a3c75616"
     else
-      url "https://github.com/openclaw/discrawl/releases/download/v0.15.6/discrawl_0.15.6_darwin_amd64.tar.gz"
-      sha256 "a59ca6dd5bfa3426a007b9a8d317e4e262638d06e1a1ccaaa9c23cc2b5e1d268"
+      url "https://github.com/openclaw/discrawl/releases/download/v0.15.7/discrawl_0.15.7_darwin_amd64.tar.gz"
+      sha256 "5d0f2e3f9b1c480d604f54f5ae00b6c24d4bd82e798ac4288af9c34b30f87712"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
-      url "https://github.com/openclaw/discrawl/releases/download/v0.15.6/discrawl_0.15.6_linux_arm64.tar.gz"
-      sha256 "bb80618e7b260665bc589fc90194d1a9ec7a99b4f4e6b37d2c9cb0b58b7a4964"
+      url "https://github.com/openclaw/discrawl/releases/download/v0.15.7/discrawl_0.15.7_linux_arm64.tar.gz"
+      sha256 "dcfa1e3e7c815c8483fb42baa2da055076216614830a4a418635834df63421f6"
     else
-      url "https://github.com/openclaw/discrawl/releases/download/v0.15.6/discrawl_0.15.6_linux_amd64.tar.gz"
-      sha256 "fac6f74f50c2deb6bd2a86e257a686b65cc424cf589fba314cb17f1e19aa544d"
+      url "https://github.com/openclaw/discrawl/releases/download/v0.15.7/discrawl_0.15.7_linux_amd64.tar.gz"
+      sha256 "99225427a451f027c4d82fcab88a7b5e4cf362a434cd9acad0cf71d505cec4f1"
     end
   end
 
