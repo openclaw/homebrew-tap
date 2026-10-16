@@ -1,28 +1,28 @@
 class Gitcrawl < Formula
   desc "Local GitHub issue and PR archive, search, and clustering"
   homepage "https://github.com/openclaw/gitcrawl"
-  version "0.15.1"
+  version "0.15.2"
   license "MIT"
 
   head "https://github.com/openclaw/gitcrawl.git", branch: "main"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/gitcrawl/releases/download/v0.15.1/gitcrawl_0.15.1_darwin_arm64.tar.gz"
-      sha256 "869fff467ce9eb5cc33260e3b02f08aa8efea3a8fe042c5e4acec3472fd1a06f"
+      url "https://github.com/openclaw/gitcrawl/releases/download/v0.15.2/gitcrawl_0.15.2_darwin_arm64.tar.gz"
+      sha256 "8b28a4251c83406c36c287cb394e99ad5a1ce1c53825bc53ab796f63763ebf0b"
     else
-      url "https://github.com/openclaw/gitcrawl/releases/download/v0.15.1/gitcrawl_0.15.1_darwin_amd64.tar.gz"
-      sha256 "418609538e21226bb54725f0933c5e873a640c5763fbf74c49deb68860a3c697"
+      url "https://github.com/openclaw/gitcrawl/releases/download/v0.15.2/gitcrawl_0.15.2_darwin_amd64.tar.gz"
+      sha256 "7b57e8b30a3017fbdadc229f486f6b50ff83622e8382497661940c47a452991f"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/gitcrawl/releases/download/v0.15.1/gitcrawl_0.15.1_linux_arm64.tar.gz"
-      sha256 "419f47cbd2d46e9154b18ced91d65378da13a2614e286b0b707e714169d89495"
+      url "https://github.com/openclaw/gitcrawl/releases/download/v0.15.2/gitcrawl_0.15.2_linux_arm64.tar.gz"
+      sha256 "824be598079350e9879e6b8182826326c8fea52070d6df66e487cc514b3ba1c9"
     else
-      url "https://github.com/openclaw/gitcrawl/releases/download/v0.15.1/gitcrawl_0.15.1_linux_amd64.tar.gz"
-      sha256 "c5f9dcc9678d27b3a9e5874c43c7c2fc539496791eab20a6170859c491991725"
+      url "https://github.com/openclaw/gitcrawl/releases/download/v0.15.2/gitcrawl_0.15.2_linux_amd64.tar.gz"
+      sha256 "cc89e9ede23f9d7c2cf83451bc1a0c438a42c6c8d6abf865a3caf6f044951d22"
     end
   end
 
