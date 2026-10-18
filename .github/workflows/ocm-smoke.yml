@@ -7,6 +7,7 @@ on:
       - .github/scripts/**
       - .github/workflows/ocm-smoke.yml
       - tests/smoke_ocm.sh
+      - tests/setup_intel_homebrew.sh
   push:
     branches:
       - main
@@ -15,6 +16,7 @@ on:
       - .github/scripts/**
       - .github/workflows/ocm-smoke.yml
       - tests/smoke_ocm.sh
+      - tests/setup_intel_homebrew.sh
 
 permissions:
   contents: read
@@ -25,16 +27,19 @@ concurrency:
 
 jobs:
   install:
-    name: OCM install (${{ matrix.runner }})
+    name: OCM install (${{ matrix.runner }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
+    defaults:
+      run:
+        shell: ${{ matrix.runner == 'xcode-27' && matrix.arch == 'x86_64' && '/usr/bin/arch -x86_64 /bin/bash --noprofile --norc -e -o pipefail {0}' || 'bash' }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-15
+          - runner: xcode-27
             arch: arm64
-          - runner: macos-15-intel
+          - runner: xcode-27
             arch: x86_64
           - runner: ubuntu-24.04
             arch: x86_64
@@ -43,6 +48,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Prepare Intel Homebrew under Rosetta
+        if: matrix.runner == 'xcode-27' && matrix.arch == 'x86_64'
+        shell: bash
+        run: bash tests/setup_intel_homebrew.sh
 
       - name: Install and test the checked-out OCM formula
         env:

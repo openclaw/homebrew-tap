@@ -5,11 +5,13 @@ on:
     paths:
       - Formula/crawlbar.rb
       - .github/workflows/crawlbar-smoke.yml
+      - tests/setup_intel_homebrew.sh
   push:
     branches: [main]
     paths:
       - Formula/crawlbar.rb
       - .github/workflows/crawlbar-smoke.yml
+      - tests/setup_intel_homebrew.sh
 
 permissions:
   contents: read
@@ -23,13 +25,16 @@ jobs:
     name: CrawlBar install (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
+    defaults:
+      run:
+        shell: ${{ matrix.arch == 'x86_64' && '/usr/bin/arch -x86_64 /bin/bash --noprofile --norc -e -o pipefail {0}' || 'bash' }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-15
+          - runner: xcode-27
             arch: arm64
-          - runner: macos-15-intel
+          - runner: xcode-27
             arch: x86_64
     env:
       HOMEBREW_NO_AUTO_UPDATE: "1"
@@ -39,12 +44,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Prepare Intel Homebrew under Rosetta
+        if: matrix.arch == 'x86_64'
+        shell: bash
+        run: bash tests/setup_intel_homebrew.sh
       - name: Audit, install, and test the checked-out formula
         env:
           EXPECTED_ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
           test "$(uname -m)" = "$EXPECTED_ARCH"
+          if [[ "$EXPECTED_ARCH" == x86_64 ]]; then
+            eval "$(/usr/bin/arch -x86_64 "$HOMEBREW_INTEL_PREFIX/bin/brew" shellenv)"
+          fi
           formula=openclaw/tap/crawlbar
           brew tap --custom-remote openclaw/tap "$GITHUB_WORKSPACE"
           tap="$(brew --repository openclaw/tap)"
@@ -54,6 +66,9 @@ jobs:
           brew install --build-from-source "$formula"
           app="$(brew --prefix "$formula")/CrawlBar.app"
           codesign --verify --deep --strict "$app"
+          # Gatekeeper needs system services blocked by Homebrew's test sandbox.
+          spctl --assess --type execute "$app"
+          xcrun stapler validate "$app"
           brew test "$formula"
           payload="$RUNNER_TEMP/crawlbar-release-payload"
           mkdir "$payload"
