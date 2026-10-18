@@ -66,6 +66,9 @@ jobs:
           brew install --build-from-source "$formula"
           app="$(brew --prefix "$formula")/CrawlBar.app"
           codesign --verify --deep --strict "$app"
+          # Gatekeeper needs system services blocked by Homebrew's test sandbox.
+          spctl --assess --type execute "$app"
+          xcrun stapler validate "$app"
           brew test "$formula"
           payload="$RUNNER_TEMP/crawlbar-release-payload"
           mkdir "$payload"

@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Move macOS CI and automation to macOS 27, preserving Intel install coverage through Rosetta and matching Intel Homebrew.
+- Run CrawlBar's Gatekeeper and notarization checks outside Homebrew 7's test sandbox, which blocks Gatekeeper's system services.
 - Honor formula livecheck skips during reconciliation and retain the retired Crabfleet CLI at its last supported release.
 
 - Update AXorcist to 0.2.0 with raw-input and parser fixes and architecture-specific signed macOS downloads.
