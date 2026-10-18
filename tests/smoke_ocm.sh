@@ -16,6 +16,8 @@ export HOMEBREW_NO_ANALYTICS=1
 mkdir -p "$HOME" "$OCM_HOME"
 if [[ "$RUNNER_OS" == "Linux" ]]; then
   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+elif [[ "$EXPECTED_ARCH" == x86_64 ]]; then
+  eval "$(/usr/bin/arch -x86_64 "$HOMEBREW_INTEL_PREFIX/bin/brew" shellenv)"
 fi
 
 # Clone the PR checkout, not the public tap's default branch.
@@ -43,8 +45,12 @@ with open(sys.argv[2]) as handle:
 assert any(item["version"] == formula["versions"]["stable"] for item in formula["installed"])
 assert receipt["source"]["tap"] == "openclaw/tap"
 PY
-[[ "$("$binary" --version)" == "$version" ]]
-"$binary" --help
+execution=()
+if [[ "$RUNNER_OS" == macOS ]]; then
+  execution=(/usr/bin/arch "-$EXPECTED_ARCH")
+fi
+[[ "$("${execution[@]}" "$binary" --version)" == "$version" ]]
+"${execution[@]}" "$binary" --help
 
 payload="$RUNNER_TEMP/ocm-release-payload"
 mkdir -p "$payload"

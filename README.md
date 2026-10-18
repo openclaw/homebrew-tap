@@ -83,6 +83,11 @@ filesystem access. `reconcile_formulae.py` discovers release drift and invokes t
 updater. These scripts live in `.github/scripts/`; formula-specific installation
 behavior stays in `Formula/*.rb`.
 
+All macOS workflows use the Apple Silicon `xcode-27` runner. Intel install
+smokes run under Rosetta with Homebrew 6.0.22 in a temporary prefix (Homebrew 7
+removed its Intel macOS Ruby runtime);
+the setup script is restricted to disposable GitHub-hosted runners.
+
 ### Release dispatch
 
 Formula updates have two automated paths. Source-repository release workflows dispatch
@@ -147,9 +152,9 @@ OCM uses reconciliation directly: its three Rust-target archives are discovered 
 formula, without a cross-repository dispatch token or a Linux ARM64 artifact. Installation
 preserves the published executable bytes, including the macOS Developer ID signature.
 Changes to the OCM formula or its updater run installed-Homebrew tests on macOS ARM64,
-macOS x86_64, and Linux x86_64, using the checked-out formula rather than the public tap.
+macOS x86_64 under Rosetta, and Linux x86_64, using the checked-out formula rather than the public tap.
 
-CrawlBar formula updates also audit, install, and test the checked-out formula on clean Apple Silicon and Intel macOS hosts, verifying that both signed executable payloads stay unchanged.
+CrawlBar formula updates also audit, install, and test the checked-out formula on Apple Silicon, using Rosetta for Intel coverage and verifying that both signed executable payloads stay unchanged.
 
 Pull requests and updates to `main` run the automation tests and validate Ruby syntax
 and Homebrew style for every formula and cask. Superseded pull-request validation runs
