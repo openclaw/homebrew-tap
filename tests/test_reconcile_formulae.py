@@ -54,38 +54,42 @@ end
 
 class ReconcileFormulaeTest(unittest.TestCase):
     def test_autoreview_source_update_preserves_install_test_and_caveats(self) -> None:
-        original = (ROOT / "Formula" / "autoreview.rb").read_text()
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             (root / "Formula").mkdir()
             path = root / "Formula" / "autoreview.rb"
-            path.write_text(original)
-            info = reconcile_formulae.parse_formula(path)
-            self.assertEqual(info.repository, "openclaw/agent-skills")
-            self.assertEqual(info.current_tag, "v0.6.0")
-            self.assertEqual(info.update_options, (
-                "--artifact-url",
-                "https://github.com/openclaw/agent-skills/releases/download/{tag}/source-{version}.tar.gz",
-            ))
+            path.write_text((ROOT / "Formula" / "autoreview.rb").read_text())
             previous = pathlib.Path.cwd()
             try:
                 os.chdir(root)
-                with mock.patch.object(reconcile_formulae.update_formula, "sha256", return_value="e" * 64) as download:
-                    self.assertEqual(reconcile_formulae.update_formula.main([
-                        "--formula", info.name, "--repository", info.repository,
-                        "--tag", "v0.6.1", *info.update_options,
-                    ]), 0)
-                download.assert_called_once_with(
-                    "https://github.com/openclaw/agent-skills/releases/download/v0.6.1/source-0.6.1.tar.gz"
-                )
+                # Repeat against the advanced formula, as the next scheduled update would.
+                for _ in range(2):
+                    original = path.read_text()
+                    info = reconcile_formulae.parse_formula(path)
+                    self.assertEqual(info.repository, "openclaw/agent-skills")
+                    self.assertEqual(info.update_options, (
+                        "--artifact-url",
+                        "https://github.com/openclaw/agent-skills/releases/download/{tag}/source-{version}.tar.gz",
+                    ))
+                    pairs = list(reconcile_formulae.update_formula.formula_text.iter_url_sha_pairs(original))
+                    self.assertEqual(len(pairs), 1)
+                    pair = pairs[0]
+                    newer = f"v{info.current_version.major}.{info.current_version.minor + 1}.0"
+                    url = f"https://github.com/{info.repository}/releases/download/{newer}/source-{newer[1:]}.tar.gz"
+                    digest = hashlib.sha256(url.encode()).hexdigest()
+                    self.assertNotEqual(pair.sha, digest)
+                    with mock.patch.object(reconcile_formulae.update_formula, "sha256", return_value=digest) as download:
+                        self.assertEqual(reconcile_formulae.update_formula.main([
+                            "--formula", info.name, "--repository", info.repository,
+                            "--tag", newer, *info.update_options,
+                        ]), 0)
+                    download.assert_called_once_with(url)
+                    expected = original.replace(pair.url, url).replace(pair.sha, digest)
+                    self.assertEqual(path.read_text(), expected)
+                    self.assertEqual(reconcile_formulae.parse_formula(path).current_tag, newer)
+                    self.assertIn("Digest::SHA256.file(helper).hexdigest", expected)
             finally:
                 os.chdir(previous)
-            expected = original.replace("v0.6.0/source-0.6.0.tar.gz", "v0.6.1/source-0.6.1.tar.gz")
-            expected = expected.replace(
-                "42aaf4cd9c49b561e81f744e9216928d9076f7d61a2e1f3c9d8c61e3696115f4", "e" * 64
-            )
-            self.assertEqual(path.read_text(), expected)
-            self.assertIn("Digest::SHA256.file(helper).hexdigest", expected)
 
     def test_livecheck_skip_preserves_retired_formula_without_release_lookup(self) -> None:
         original = formula_text().replace(
