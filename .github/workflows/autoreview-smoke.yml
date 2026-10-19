@@ -1,0 +1,41 @@
+name: Autoreview Install
+
+on:
+  pull_request:
+    paths:
+      - Formula/autoreview.rb
+      - .github/workflows/autoreview-smoke.yml
+      - tests/smoke_autoreview.sh
+  push:
+    branches: [main]
+    paths:
+      - Formula/autoreview.rb
+      - .github/workflows/autoreview-smoke.yml
+      - tests/smoke_autoreview.sh
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  install:
+    name: Autoreview install (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [xcode-27, ubuntu-24.04]
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install, test, reinstall, and uninstall the checked-out formula
+        run: bash tests/smoke_autoreview.sh

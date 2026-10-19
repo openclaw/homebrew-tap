@@ -24,6 +24,7 @@ brew install --cask openclaw/tap/<name>
 
 ### Formulae
 
+- `autoreview` — Structured code review with local AI command-line tools
 - `axorc` — Inspect and automate macOS Accessibility from the shell
 - `clawscan` — Agent-skill security scanner harness for ClawHub
 - `clawdex` — Local-first address book backed by Markdown
@@ -60,6 +61,9 @@ brew uninstall --cask --zap openclaw/tap/<name>
 ## Notes
 
 - Run `brew info openclaw/tap/<name>` for per-tool caveats (permissions, setup steps, etc.).
+- Autoreview installs its CLI and skill resources without registering user skills.
+  Configure a supported engine separately. Text review uses the packaged Python;
+  image review needs a separately managed Python environment containing Pillow.
 - OCM supports macOS Apple Silicon/Intel and Linux x86_64. Install with
   `brew install openclaw/tap/ocm` and update with `brew upgrade openclaw/tap/ocm`,
   not `ocm self update`, which refuses to replace Homebrew-managed binaries.
@@ -75,6 +79,8 @@ python3 -B -m unittest discover -s tests -v
 brew style Formula/*.rb
 brew ruby tests/test_ocm_platforms.rb
 brew ruby tests/test_crabbox_install.rb
+# With an extracted, checksum-verified agent-skills release:
+brew ruby tests/test_autoreview_install.rb /path/to/release-source
 ```
 
 `update_formula.py` owns command validation, downloads, source-tag verification and
