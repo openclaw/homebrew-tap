@@ -5,21 +5,21 @@ class Goplaces < Formula
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/goplaces/releases/download/v0.4.13/goplaces_0.4.13_darwin_arm64.tar.gz"
-      sha256 "7f2ac4ee4922d58433eb11f542e471e27b4accf0708338a75fc43de646e4129e"
+      url "https://github.com/openclaw/goplaces/releases/download/v0.4.14/goplaces_0.4.14_darwin_arm64.tar.gz"
+      sha256 "7326696ddc23bf7956ef1a288dfd8cfcfd93b559411734d6452ee6f40291504d"
     else
-      url "https://github.com/openclaw/goplaces/releases/download/v0.4.13/goplaces_0.4.13_darwin_amd64.tar.gz"
-      sha256 "151d0b46aa2fa9ea4387fd3f42684b883ed880f731f30d9ff9f405606f35851d"
+      url "https://github.com/openclaw/goplaces/releases/download/v0.4.14/goplaces_0.4.14_darwin_amd64.tar.gz"
+      sha256 "398ee962fd1e7f835de635ae99b26307de6fd76d4b3f38d8d5ff25b6a000ad77"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/goplaces/releases/download/v0.4.13/goplaces_0.4.13_linux_arm64.tar.gz"
-      sha256 "e36b309c8cd743e01463ae4f6d88f8622319b32dc55e3817133edc9ea7e252fb"
+      url "https://github.com/openclaw/goplaces/releases/download/v0.4.14/goplaces_0.4.14_linux_arm64.tar.gz"
+      sha256 "a377e9df67495177e1358090f0ad2779b0604071d1662f6943fd524b55a08995"
     else
-      url "https://github.com/openclaw/goplaces/releases/download/v0.4.13/goplaces_0.4.13_linux_amd64.tar.gz"
-      sha256 "7c4bce86797c13ed6fa1e9a0a4dbd68e31dd97beed37e6fa8a142028736ce494"
+      url "https://github.com/openclaw/goplaces/releases/download/v0.4.14/goplaces_0.4.14_linux_amd64.tar.gz"
+      sha256 "e34230d96e9888f8cfbf43d0d816415f6cb82f43c36227d12baec7d992796b7f"
     end
   end
 
