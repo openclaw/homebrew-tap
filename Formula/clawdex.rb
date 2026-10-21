@@ -1,26 +1,26 @@
 class Clawdex < Formula
   desc "Local-first address book backed by Markdown"
   homepage "https://github.com/openclaw/clawdex"
-  version "0.3.1"
+  version "0.4.0"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/clawdex/releases/download/v0.3.1/clawdex_0.3.1_darwin_arm64.tar.gz"
-      sha256 "2f7c39d30704d43314cc41febc26d1db9977fb5632510426acba1e1d848da68b"
+      url "https://github.com/openclaw/clawdex/releases/download/v0.4.0/clawdex_0.4.0_darwin_arm64.tar.gz"
+      sha256 "59d7571091d573414e5720bb5cefbcfe3aec0b96eca26ccb8fc3665b72adc722"
     else
-      url "https://github.com/openclaw/clawdex/releases/download/v0.3.1/clawdex_0.3.1_darwin_amd64.tar.gz"
-      sha256 "4ad5ce30eaaaa856b55016bdd7a2447ca5f69fda588db1ce8eb22861d529327a"
+      url "https://github.com/openclaw/clawdex/releases/download/v0.4.0/clawdex_0.4.0_darwin_amd64.tar.gz"
+      sha256 "505bba6e97b1d088e73cba1bd3bf9a3c74727c5473558fdef3f975c7acc0695a"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/clawdex/releases/download/v0.3.1/clawdex_0.3.1_linux_arm64.tar.gz"
-      sha256 "8777b9050fa039c61e921d52abf0b54e1183527490abbe9d34f3f58a2eeba930"
+      url "https://github.com/openclaw/clawdex/releases/download/v0.4.0/clawdex_0.4.0_linux_arm64.tar.gz"
+      sha256 "db51f1d6168a0c6a38330a82bd02597747687ebcc49e823d2a4405c7fb865592"
     else
-      url "https://github.com/openclaw/clawdex/releases/download/v0.3.1/clawdex_0.3.1_linux_amd64.tar.gz"
-      sha256 "e5addd9a9dcdc367b272a46b536d545e9e55517c638b6a486aa14030dda2718b"
+      url "https://github.com/openclaw/clawdex/releases/download/v0.4.0/clawdex_0.4.0_linux_amd64.tar.gz"
+      sha256 "f9061566724fc8baa65aac96b86bf5fb73834394c074d702d55e2b2eb8512adc"
     end
   end
 
