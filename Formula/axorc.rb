@@ -2,12 +2,12 @@ class Axorc < Formula
   desc "Inspect and automate macOS Accessibility from the shell"
   homepage "https://github.com/openclaw/AXorcist"
   url on_arch_conditional(
-    arm:   "https://github.com/openclaw/AXorcist/releases/download/v0.2.2/axorc-0.2.2-macos-arm64.zip",
-    intel: "https://github.com/openclaw/AXorcist/releases/download/v0.2.2/axorc-0.2.2-macos-x86_64.zip",
+    arm:   "https://github.com/openclaw/AXorcist/releases/download/v0.2.3/axorc-0.2.3-macos-arm64.zip",
+    intel: "https://github.com/openclaw/AXorcist/releases/download/v0.2.3/axorc-0.2.3-macos-x86_64.zip",
   )
   sha256 on_arch_conditional(
-    arm:   "50a5df9dd457d292ba5b1c73329ae0452f727c5abff2625434072d0e3ea2fe54",
-    intel: "72280da6e4a7cc1ad5e3942e88513614057fb12cf96435123e3663ca817a5e59",
+    arm:   "961312fea6a92f63979467b1b49da593537b5e9a9d44fcee298045d7ccdef276",
+    intel: "70040c25fc5f3475066b8484efec82af3a3db43e87cb5b4882c6785e53ce991c",
   )
   license "MIT"
 
