@@ -1,19 +1,19 @@
 class Ocm < Formula
   desc "Manage isolated OpenClaw environments, runtimes, and services"
   homepage "https://github.com/openclaw/ocm"
-  url "https://github.com/openclaw/ocm/releases/download/v0.3.6/ocm-x86_64-unknown-linux-gnu.tar.gz"
-  version "0.3.6"
-  sha256 "29e32a50d6255de21793851d078948b171db925ba564f7af17a3b23c219558f1"
+  url "https://github.com/openclaw/ocm/releases/download/v0.3.7/ocm-x86_64-unknown-linux-gnu.tar.gz"
+  version "0.3.7"
+  sha256 "dc9cfe0914eb3e4f310d068f9eb4fdf02444d0550df6f6bebb85c24c9b7129fd"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/openclaw/ocm/releases/download/v0.3.6/ocm-aarch64-apple-darwin.tar.gz"
-      sha256 "29deb0bebd56bc4948507653a0c61a210ab37eb4cf77943dfd8f3881bf5d3731"
+      url "https://github.com/openclaw/ocm/releases/download/v0.3.7/ocm-aarch64-apple-darwin.tar.gz"
+      sha256 "318d03259dc53cd0859ccf1ad5229d3b31d54d53dee992d6451b6f68cd6f762d"
     end
     on_intel do
-      url "https://github.com/openclaw/ocm/releases/download/v0.3.6/ocm-x86_64-apple-darwin.tar.gz"
-      sha256 "0e8088c2c48e59317a047c885da3d8bf07a440f2acfba9ac2f0b5ae8594e6105"
+      url "https://github.com/openclaw/ocm/releases/download/v0.3.7/ocm-x86_64-apple-darwin.tar.gz"
+      sha256 "743bec0124312c714f5eaf461ca28f982c0d5c83a938030e7e25d6891350458e"
     end
   end
 
