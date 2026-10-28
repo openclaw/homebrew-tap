@@ -119,7 +119,7 @@ Dir.mktmpdir("clawsweeper-formula-install-") do |directory|
     end
 
     has_license = package.children.any? do |file|
-      file.file? && file.basename.to_s.match?(/\ALICENSE(?:\.|\z)/i)
+      file.file? && file.basename.to_s.match?(/\ALICENSE(?:[-.]|\z)/i)
     end
     raise "Missing installed package license" unless has_license
   end
