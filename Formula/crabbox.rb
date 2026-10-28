@@ -8,23 +8,23 @@ class Crabbox < Formula
 
   on_macos do
     if Hardware::CPU.intel?
-      url "https://github.com/openclaw/crabbox/releases/download/v0.79.3/crabbox_0.79.3_darwin_amd64.tar.gz"
-      sha256 "8264c513f02a09095c273cee969ffb94b9e73e9ece377ae39bcecb85e4b36fa2"
+      url "https://github.com/openclaw/crabbox/releases/download/v0.80.0/crabbox_0.80.0_darwin_amd64.tar.gz"
+      sha256 "a36814f7fd2263d69c6bb4d1b7e6d6c2fe12335414634fdcf9e3890d6d7fe850"
     end
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/crabbox/releases/download/v0.79.3/crabbox_0.79.3_darwin_arm64.tar.gz"
-      sha256 "a11fc0e5a468cf01ec3dad27f57dd6bddf0ec40913edc66d48822f1d7b3b262a"
+      url "https://github.com/openclaw/crabbox/releases/download/v0.80.0/crabbox_0.80.0_darwin_arm64.tar.gz"
+      sha256 "f56af3af140c117821b22d5eb6a59e4710a5a8a8eab1bec357b9abe8228c3c54"
     end
   end
 
   on_linux do
     if Hardware::CPU.intel? && Hardware::CPU.is_64_bit?
-      url "https://github.com/openclaw/crabbox/releases/download/v0.79.3/crabbox_0.79.3_linux_amd64.tar.gz"
-      sha256 "0dae99ecebf779eecd66ff4922fb67bb99e1f50409ab3585722f4f6f6aa0f6d6"
+      url "https://github.com/openclaw/crabbox/releases/download/v0.80.0/crabbox_0.80.0_linux_amd64.tar.gz"
+      sha256 "0d2473c651a66c2f08d5df42a23209d8f384ec1bcf64130bc8c9a41efa885374"
     end
     if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
-      url "https://github.com/openclaw/crabbox/releases/download/v0.79.3/crabbox_0.79.3_linux_arm64.tar.gz"
-      sha256 "eec44536e3fa186e49784606e78826bf30c2e7bd2e125a64b0ea616b11f8407d"
+      url "https://github.com/openclaw/crabbox/releases/download/v0.80.0/crabbox_0.80.0_linux_arm64.tar.gz"
+      sha256 "cc78799aca1268bb04aae6e4af593ae65eb9b45dc86f4b07da2f0f962d9e9300"
     end
   end
 
