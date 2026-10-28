@@ -2,13 +2,19 @@
 
 # Run with `brew ruby tests/test_clawsweeper_install.rb [verified-envelope-directory]`.
 # Exercise native installation and test in a private prefix, then remove that prefix.
+# First provision Homebrew's formula_test gem group on the disposable runner.
 require "formula"
+require "extend/ENV"
 require "formula_assertions"
 require "digest"
 require "fileutils"
 require "json"
 require "open3"
 require "tmpdir"
+
+# `brew ruby` does not activate the extensions used by native install/test bodies.
+ENV.extend(Stdenv)
+Pathname.activate_extensions!
 
 root = Pathname.new(__dir__).parent
 path = root/"Formula/clawsweeper.rb"

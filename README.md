@@ -89,7 +89,8 @@ brew ruby tests/test_ocm_platforms.rb
 brew ruby tests/test_crabbox_install.rb
 # With an extracted, checksum-verified agent-skills release:
 brew ruby tests/test_autoreview_install.rb /path/to/release-source
-# Downloads the pinned ClawSweeper envelope and resources; uses a private prefix:
+# On a disposable runner: provision Homebrew test gems, then use a private prefix:
+brew install-bundler-gems --add-groups=formula_test
 brew ruby tests/test_clawsweeper_install.rb
 ```
 

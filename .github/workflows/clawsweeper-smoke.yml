@@ -43,6 +43,7 @@ jobs:
             eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
           fi
           brew install node@24 git
+          brew install-bundler-gems --add-groups=formula_test
       - name: Verify native installation and lifecycle in a private prefix
         run: |
           if [[ "$RUNNER_OS" == Linux ]]; then
