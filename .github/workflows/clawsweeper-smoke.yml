@@ -1,0 +1,54 @@
+name: ClawSweeper Install
+
+on:
+  pull_request:
+    paths:
+      - Formula/clawsweeper.rb
+      - .github/workflows/clawsweeper-smoke.yml
+      - tests/test_clawsweeper_install.rb
+  push:
+    branches: [main]
+    paths:
+      - Formula/clawsweeper.rb
+      - .github/workflows/clawsweeper-smoke.yml
+      - tests/test_clawsweeper_install.rb
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  install:
+    name: ClawSweeper private-prefix install (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [xcode-27, ubuntu-24.04]
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install declared dependencies on the disposable runner
+        run: |
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          fi
+          brew install node@24 git
+      - name: Verify native installation and lifecycle in a private prefix
+        run: |
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          fi
+          export HOMEBREW_CACHE="$RUNNER_TEMP/clawsweeper-homebrew-cache"
+          export HOMEBREW_TEMP="$RUNNER_TEMP/clawsweeper-homebrew-temp"
+          mkdir -p "$HOMEBREW_CACHE" "$HOMEBREW_TEMP"
+          brew ruby tests/test_clawsweeper_install.rb

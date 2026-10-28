@@ -27,6 +27,7 @@ brew install --cask openclaw/tap/<name>
 - `autoreview` — Structured code review with local AI command-line tools
 - `axorc` — Inspect and automate macOS Accessibility from the shell
 - `clawscan` — Agent-skill security scanner harness for ClawHub
+- `clawsweeper` — Review committed changes with a local AI command-line tool
 - `clawdex` — Local-first address book backed by Markdown
 - `crabbox` — Remote Linux test boxes for dirty worktrees and CI hydration
 - `crabfleet` — Fleet management CLI for Crabbox workers
@@ -64,6 +65,13 @@ brew uninstall --cask --zap openclaw/tap/<name>
 - Autoreview installs its CLI and skill resources without registering user skills.
   Configure a supported engine separately. Text review uses the packaged Python;
   image review needs a separately managed Python environment containing Pillow.
+- ClawSweeper installs the published private package with its original dependency
+  lock and a private TruffleHog 3.99.4 scanner. It does not publish to npm, log in,
+  or configure a model provider. Configure Codex or OpenClaw separately for reviews;
+  `clawsweeper --help` and `clawsweeper --version` do not invoke a provider.
+  The installed `libexec/manifest.json` records the release source and file hashes.
+  npm dependencies retain their license files; the scanner retains its AGPL-3.0
+  license and comes from the [TruffleHog 3.99.4 source](https://github.com/trufflesecurity/trufflehog/tree/v3.99.4).
 - OCM supports macOS Apple Silicon/Intel and Linux x86_64. Install with
   `brew install openclaw/tap/ocm` and update with `brew upgrade openclaw/tap/ocm`,
   not `ocm self update`, which refuses to replace Homebrew-managed binaries.
@@ -81,6 +89,8 @@ brew ruby tests/test_ocm_platforms.rb
 brew ruby tests/test_crabbox_install.rb
 # With an extracted, checksum-verified agent-skills release:
 brew ruby tests/test_autoreview_install.rb /path/to/release-source
+# Downloads the pinned ClawSweeper envelope and resources; uses a private prefix:
+brew ruby tests/test_clawsweeper_install.rb
 ```
 
 `update_formula.py` owns command validation, downloads, source-tag verification and
@@ -149,6 +159,13 @@ stable published release, and runs the same updater and checksum-download logic 
 newer. Formulae with an explicit `livecheck` `skip` are reported with their reason and retain their last supported version. The retired `crabfleet` fleet-management CLI stays at 0.3.1; the Linux desktop connector introduced in 0.4.0 is a different program. Invalid formula metadata is reported and skipped so later formulae are still inspected.
 Resource URLs are excluded from release inference, including resources from the same
 source repository; their pinned versions and checksums remain unchanged.
+ClawSweeper therefore skips automatic reconciliation: update its immutable envelope,
+locked npm resources, scanner pins, and provenance test together, then qualify the
+checked-out formula on macOS and Linux. Do not use the generic `Update Formula`
+workflow for this coordinated update. Its install smoke uses an isolated prefix,
+HOME and npm cache/config; it checks installed bytes, dependency versions, scanner
+identity, help and version, then removes only that private installation. This is
+not a provider/model review or a Homebrew upgrade/uninstall qualification.
 It never downgrades, skips drafts and prereleases, and makes no commit when every formula is
 current. Manual reconciles default to dry-run and can target one formula. The reconciler reads public
 release metadata and pushes with this tap's own `GITHUB_TOKEN`; it needs no cross-repository token or
