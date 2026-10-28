@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add ClawSweeper 0.3.2 from its immutable release envelope with locked npm resources, a private pinned scanner, and provider-free macOS/Linux install tests.
 - Add Autoreview 0.6.0 from its immutable source release, retaining skill resources and helper fingerprints without changing user skill registrations.
 - Move macOS CI and automation to macOS 27, preserving Intel install coverage through Rosetta and matching Intel Homebrew.
 - Run CrawlBar's Gatekeeper and notarization checks outside Homebrew 7's test sandbox, which blocks Gatekeeper's system services.
