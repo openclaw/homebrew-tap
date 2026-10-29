@@ -4,8 +4,8 @@
 class Clawsweeper < Formula
   desc "Review committed changes with a local AI command-line tool"
   homepage "https://github.com/openclaw/clawsweeper"
-  url "https://github.com/openclaw/clawsweeper/releases/download/v0.3.2/clawsweeper-local-envelope.tar.gz"
-  sha256 "8536f4ca86212fe1937810eb1ea3247644355179f513f845045e1839ef55e61d"
+  url "https://github.com/openclaw/clawsweeper/releases/download/v0.3.3/clawsweeper-local-envelope.tar.gz"
+  sha256 "45c1a09c666e16ef2097eb3d849a5ba9a7655b28ea5737ee3643154bca156233"
   license all_of: ["MIT", "AGPL-3.0-only", "PSF-2.0", "BSD-2-Clause", "ISC"]
 
   # The generic updater cannot advance the envelope's lock and scanner resources.
@@ -114,8 +114,8 @@ class Clawsweeper < Formula
     assert_equal "#{version}\n", shell_output("#{bin}/clawsweeper --version")
     assert_match "--target-dir", shell_output("#{bin}/clawsweeper --help")
     manifest = JSON.parse((libexec/"manifest.json").read)
-    assert_equal "ef5a507f43321fda5babbc176283756d9e755944", manifest.fetch("source")
-    assert_equal "dc1d92417998785ccceb6cca4b704872bd1d3966", manifest.fetch("sourceTree")
+    assert_equal "511462151487bd544a2778ef4868451b07f08683", manifest.fetch("source")
+    assert_equal "44c635531274e4a0f25ee72cf911d5570bb35686", manifest.fetch("sourceTree")
     assert_equal "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                  manifest.fetch("sourceDiffSha256")
     manifest.fetch("files").each do |file|
