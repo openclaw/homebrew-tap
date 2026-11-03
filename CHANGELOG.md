@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Retain the platform timeout for CodeQL instead of imposing a shorter scan budget.
+
 - Scan main daily with CodeQL while preserving pull request and manual scans and the existing formula validation gates.
 
 - Add ClawSweeper 0.3.2 from its immutable release envelope with locked npm resources, a private pinned scanner, and provider-free macOS/Linux install tests.
