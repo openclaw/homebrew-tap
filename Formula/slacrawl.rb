@@ -1,26 +1,26 @@
 class Slacrawl < Formula
   desc "Go-based CLI for mirroring Slack workspace data into local SQLite"
   homepage "https://github.com/openclaw/slacrawl"
-  version "0.10.6"
+  version "0.11.0"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/openclaw/slacrawl/releases/download/v0.10.6/slacrawl_0.10.6_darwin_arm64.tar.gz"
-      sha256 "ecf90ddbe3ebe7d5e3ec98f5fab43d444f1d5cd590e8c820b26d6b1f2e8ae921"
+      url "https://github.com/openclaw/slacrawl/releases/download/v0.11.0/slacrawl_0.11.0_darwin_arm64.tar.gz"
+      sha256 "205a185b7a57cac66721b98dcb21ccb9c2f87abccb94c8618afa1513d5f42e82"
     else
-      url "https://github.com/openclaw/slacrawl/releases/download/v0.10.6/slacrawl_0.10.6_darwin_amd64.tar.gz"
-      sha256 "885f8816382b41a9cf8b3426817cea796197bbd21bbda01364075bd31f2bb4bd"
+      url "https://github.com/openclaw/slacrawl/releases/download/v0.11.0/slacrawl_0.11.0_darwin_amd64.tar.gz"
+      sha256 "e39ba6754d1bf5417cfeeaa2e5dcd7627b1957b5f2d542f2ecfb8fd1bfbdf479"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
-      url "https://github.com/openclaw/slacrawl/releases/download/v0.10.6/slacrawl_0.10.6_linux_arm64.tar.gz"
-      sha256 "11dd957ef9a10bc16665ba97760b0358f81617d7eb862639ae0f8f16cfb9c383"
+      url "https://github.com/openclaw/slacrawl/releases/download/v0.11.0/slacrawl_0.11.0_linux_arm64.tar.gz"
+      sha256 "8eeb09d03e003e6536ab9e8cc7a8ae4f1f9bf1163b08ba9d5f9b7a5b35e8be5a"
     else
-      url "https://github.com/openclaw/slacrawl/releases/download/v0.10.6/slacrawl_0.10.6_linux_amd64.tar.gz"
-      sha256 "daf560f24e57949fe9ab8c7d33cbf1341a0c265afa9911dd904115800bae6154"
+      url "https://github.com/openclaw/slacrawl/releases/download/v0.11.0/slacrawl_0.11.0_linux_amd64.tar.gz"
+      sha256 "9b032e4d6b579821de769faea5c270c92d6bb8c40ac412676d62a55be8089017"
     end
   end
 
