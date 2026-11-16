@@ -4,8 +4,8 @@
 class Autoreview < Formula
   desc "Structured code review with local AI command-line tools"
   homepage "https://github.com/openclaw/agent-skills"
-  url "https://github.com/openclaw/agent-skills/releases/download/v0.6.0/source-0.6.0.tar.gz"
-  sha256 "42aaf4cd9c49b561e81f744e9216928d9076f7d61a2e1f3c9d8c61e3696115f4"
+  url "https://github.com/openclaw/agent-skills/releases/download/v0.7.0/source-0.7.0.tar.gz"
+  sha256 "68ffb9d8401ba529380657f6553e91557187a18bb709d66888b95f4fe64dcf00"
   license "MIT"
 
   depends_on "git"
