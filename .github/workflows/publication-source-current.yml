@@ -1,0 +1,25 @@
+name: Publication admission gate
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  inspect-publication-metadata:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout trusted base code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Validate publication metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/publish_formulae.py gate

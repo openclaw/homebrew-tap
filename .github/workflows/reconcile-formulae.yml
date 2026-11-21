@@ -18,10 +18,13 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
+  statuses: write
 
 concurrency:
-  group: reconcile-formulae
+  group: tap-formula-publication
   cancel-in-progress: false
+  queue: max
 
 jobs:
   reconcile:
@@ -44,6 +47,11 @@ jobs:
           git checkout -B "$DEFAULT_BRANCH" "$GITHUB_SHA"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Preserve pending publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/publish_formulae.py pending
 
       - name: Reconcile formulae
         env:
@@ -68,7 +76,7 @@ jobs:
           done
           brew style Formula/*.rb
 
-      - name: Commit and push
+      - name: Publish validated update
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
@@ -79,27 +87,4 @@ jobs:
             echo "Dry run left the checkout unchanged"
             exit 0
           fi
-
-          git add Formula/*.rb
-          if git diff --cached --quiet; then
-            echo "All formulae are current; no commit needed"
-            exit 0
-          fi
-
-          git commit -m "chore: reconcile Homebrew formulae"
-          gh auth setup-git
-          for attempt in 1 2 3; do
-            if git push origin "HEAD:refs/heads/${DEFAULT_BRANCH}"; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "git push failed after ${attempt} attempts" >&2
-              exit 1
-            fi
-            git pull --rebase origin "$DEFAULT_BRANCH"
-            python3 -m unittest discover -s tests -v
-            for formula in Formula/*.rb; do
-              ruby -c "$formula"
-            done
-            brew style Formula/*.rb
-          done
+          python3 .github/scripts/publish_formulae.py publish --mode reconcile

@@ -169,7 +169,7 @@ identity, help and version, then removes only that private installation. This is
 not a provider/model review or a Homebrew upgrade/uninstall qualification.
 It never downgrades, skips drafts and prereleases, and makes no commit when every formula is
 current. Manual reconciles default to dry-run and can target one formula. The reconciler reads public
-release metadata and pushes with this tap's own `GITHUB_TOKEN`; it needs no cross-repository token or
+release metadata and publishes PRs with this tap's own `GITHUB_TOKEN`; it needs no cross-repository token or
 other external credential. The dispatch path remains the preferred low-latency path.
 
 OCM uses reconciliation directly: its three Rust-target archives are discovered from the
@@ -211,10 +211,32 @@ for verifying the public release bytes immediately before dispatch and again aft
 including its clean downstream Homebrew install proof. Each source-tag `git fetch` and
 `git ls-remote` verification has a 60-second deadline and aborts the update on timeout.
 
-Each successful verified dispatch creates one direct-child provenance commit, including when the
-formula is already current. The workflow revalidates the exact
-public source tag without credentials immediately before its one-shot push and again after proving
-that the remote tap branch equals the pushed commit.
+Both publishers preserve validated output on immutable `automation/tap/` branches and
+use normal, expected-head squash merges. They never force-push or rebase generated
+formulae onto a different source base. A pending publisher PR blocks later generation
+until an operator resolves it, so unmerged payload is not overwritten.
+
+Automatic merging requires an active, bypass-free strict status rule for
+`Publication merge admission`, bound to GitHub Actions (App ID 15368), plus non-fast-forward protection. An operator
+with rule access must verify the bypass-free activation. Runtime metadata checks reject
+exposed bypasses; omitted bypass metadata is GitHub redaction, not proof of its absence.
+The workflow does not request administration permission. The trusted
+`pull_request_target` gate uses pinned workflow code and checks only that the PR is
+open, targets this repository and main, and still has the event head. It never runs
+candidate code. Valid events receive a neutral, commit-wide admission status; obsolete
+events write no status. The publisher alone validates its payload, source base and
+provenance, then posts the same status before normal merging. Missing or
+inaccessible rules leave a visible PR and fail publication. Pull-request CI created
+with `GITHUB_TOKEN` may require approval; the publisher does not claim those checks ran.
+
+Each successful verified dispatch leaves one squash commit whose sole parent is the
+dispatched tap base, including when the formula is already current. A bounded latest
+receipt at `.github/formula-handoffs/<formula>.json` makes that no-op handoff reviewable.
+It binds the request, source tag, dispatch base, run attempt and formula blob. The workflow
+revalidates the public source tag without credentials immediately before merging and
+after verifying the actual merge parent, complete payload tree and current default tip.
+If the base advances, regeneration is required. A failed post-merge check may already
+have published a commit; the workflow never reports that outcome as success.
 
 Verified run titles are `Update <formula> for <tag> (request-id=<id>;
 source-tag-object=<object>; source-tag-commit=<commit>)`. A changed formula commit records
