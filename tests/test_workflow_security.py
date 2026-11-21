@@ -104,7 +104,7 @@ class WorkflowSecurityTest(unittest.TestCase):
         self.assertNotIn("TAP_TOKEN", text)
         self.assertIn("persist-credentials: false", text)
         self.assertIn("ref: ${{ github.sha }}", text)
-        self.assertIn('git diff --exit-code', named_step_run(text, "Commit and push"))
+        self.assertIn('git diff --exit-code', named_step_run(text, "Publish validated update"))
         for block in run_blocks(text):
             self.assertNotIn("${{ inputs.", block)
 
@@ -126,19 +126,11 @@ class WorkflowSecurityTest(unittest.TestCase):
             "(request-id={0}; source-tag-object={1}; source-tag-commit={2})",
             text,
         )
-        push = named_step_run(text, "Commit and push")
-        for trailer in (
-            "Source-Repository: ${REPOSITORY}",
-            "Source-Tag-Object: ${SOURCE_TAG_OBJECT}",
-            "Source-Tag-Commit: ${SOURCE_TAG_COMMIT}",
-            "Request-ID: ${REQUEST_ID}",
-        ):
-            self.assertIn(trailer, push)
-        self.assertIn("unset GH_TOKEN", push)
-        pushed = push.index('git push origin "HEAD:refs/heads/${DEFAULT_BRANCH}"')
-        remote_proof = push.index('if [ "$remote_head" != "$local_head" ]; then', pushed)
-        post_push_revalidation = push.index("revalidate_verified_source_tag", remote_proof)
-        self.assertLess(remote_proof, post_push_revalidation)
+        publisher = (ROOT / ".github/scripts/publish_formulae.py").read_text()
+        for trailer in ("Source-Repository", "Source-Tag-Object", "Source-Tag-Commit", "Request-ID"):
+            self.assertIn(trailer, publisher)
+        self.assertIn("verify_tag()", publisher)
+        self.assertIn("formula_blob", publisher)
 
     def test_update_step_treats_shell_metacharacters_as_data(self) -> None:
         script = named_step_run(UPDATE_WORKFLOW.read_text(), "Update formula")
@@ -191,7 +183,7 @@ class WorkflowSecurityTest(unittest.TestCase):
     def test_dispatch_validates_before_push(self) -> None:
         text = UPDATE_WORKFLOW.read_text()
         validation = text.index("      - name: Validate update")
-        commit = text.index("      - name: Commit and push")
+        commit = text.index("      - name: Publish validated update")
 
         self.assertLess(validation, commit)
         step = named_step_run(text, "Validate update")
@@ -199,18 +191,27 @@ class WorkflowSecurityTest(unittest.TestCase):
         self.assertIn('ruby -c "$formula"', step)
         self.assertIn("brew style Formula/*.rb", step)
 
-        push_step = named_step_run(text, "Commit and push")
-        self.assertIn("for attempt in 1 2 3", push_step)
-        self.assertIn('git pull --rebase origin "$DEFAULT_BRANCH"', push_step)
-        self.assertIn("python3 -m unittest discover -s tests -v", push_step)
-        self.assertIn("brew style Formula/*.rb", push_step)
-        self.assertIn('git push origin "HEAD:refs/heads/${DEFAULT_BRANCH}"', push_step)
+        for workflow in (UPDATE_WORKFLOW, RECONCILE_WORKFLOW):
+            source = workflow.read_text()
+            self.assertNotIn("git push", source)
+            self.assertNotIn("git pull", source)
+            self.assertIn("publish_formulae.py publish", source)
+            self.assertIn("group: tap-formula-publication", source)
+            self.assertIn("queue: max", source)
+            self.assertLess(source.index("Preserve pending publication"), source.index("Publish validated update"))
+        gate = (ROOT / ".github/workflows/publication-source-current.yml").read_text()
+        self.assertIn("pull_request_target:", gate)
+        self.assertIn("ref: ${{ github.workflow_sha }}", gate)
+        self.assertIn("branches: [main]", gate)
+        self.assertIn("ready_for_review, edited]", gate)
+        self.assertNotIn("pull_request.head", gate)
+        self.assertIn("statuses: write", gate)
 
     def test_crabbox_workflow_assets_reach_commit_or_noop_and_fail_closed(self) -> None:
         workflow = UPDATE_WORKFLOW.read_text()
         update = named_step_run(workflow, "Update formula")
         validate = named_step_run(workflow, "Validate update")
-        push = named_step_run(workflow, "Commit and push")
+        push = named_step_run(workflow, "Publish validated update")
         targets = ("darwin_amd64", "darwin_arm64", "linux_amd64", "linux_arm64")
         original = (ROOT / "Formula" / "crabbox.rb").read_text()
         assets = {
@@ -272,6 +273,8 @@ with mock.patch("urllib.request.OpenerDirector.open", side_effect=download), \\
                   if [ "$1" = -m ]; then
                     printf 'tests\\n' >> "$CALLS"
                     [ "$MODE" != validation-failure ]
+                  elif [ "$1" = .github/scripts/publish_formulae.py ]; then
+                    printf 'publish %s\n' "$*" >> "$CALLS"
                   else
                     "$PYTHON" "$WRAPPER" "$@"
                   fi
@@ -337,214 +340,10 @@ with mock.patch("urllib.request.OpenerDirector.open", side_effect=download), \\
                     else:
                         self.assertEqual(completed.returncode, 0, completed.stderr)
                         self.assertEqual(formula.read_text(), expected)
-                        self.assertEqual(calls[:6], [
+                        self.assertEqual(calls, [
                             "tests", "ruby", "ruby", "style",
-                            "git add Formula/crabbox.rb", "git diff --cached --quiet",
+                            "publish .github/scripts/publish_formulae.py publish --mode update",
                         ])
-                        if mode == "noop":
-                            self.assertEqual(len(calls), 6)
-                            self.assertIn("already up to date", completed.stdout)
-                        else:
-                            self.assertEqual(calls[6:], [
-                                "git commit -m crabbox: update formula for v1.2.3",
-                                "gh auth setup-git", "git push origin HEAD:refs/heads/main",
-                            ])
-
-    def test_push_retries_after_main_advances(self) -> None:
-        script = named_step_run(UPDATE_WORKFLOW.read_text(), "Commit and push")
-        with tempfile.TemporaryDirectory() as directory:
-            temp = pathlib.Path(directory)
-            attempts = temp / "attempts"
-            pulled = temp / "pulled"
-            harness = f'''git() {{
-              case "$1" in
-                add|commit) return 0 ;;
-                diff) return 1 ;;
-                push)
-                  count=0
-                  if [ -f "$ATTEMPTS_FILE" ]; then count=$(cat "$ATTEMPTS_FILE"); fi
-                  count=$((count + 1))
-                  printf '%s' "$count" > "$ATTEMPTS_FILE"
-                  [ "$count" -gt 1 ]
-                  ;;
-                pull) touch "$PULLED_FILE" ;;
-              esac
-            }}
-            gh() {{ :; }}
-            python3() {{ :; }}
-            ruby() {{ :; }}
-            brew() {{ :; }}
-            {script}
-            '''
-            subprocess.run(
-                ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", harness],
-                cwd=ROOT,
-                env={
-                    **os.environ,
-                    "ATTEMPTS_FILE": str(attempts),
-                    "CASK": "",
-                    "DEFAULT_BRANCH": "main",
-                    "FORMULA": "gogcli",
-                    "GITHUB_SHA": "a" * 40,
-                    "PULLED_FILE": str(pulled),
-                    "REPOSITORY": "openclaw/gogcli",
-                    "REQUEST_ID": "legacy-request",
-                    "SOURCE_TAG_COMMIT": "",
-                    "SOURCE_TAG_OBJECT": "",
-                    "TAG": "v1.2.3",
-                },
-                check=True,
-            )
-
-            self.assertEqual(attempts.read_text(), "2")
-            self.assertTrue(pulled.exists())
-
-    def test_verified_push_fails_closed_without_rebase_when_main_advances(self) -> None:
-        script = named_step_run(UPDATE_WORKFLOW.read_text(), "Commit and push")
-        with tempfile.TemporaryDirectory() as directory:
-            temp = pathlib.Path(directory)
-            pulled = temp / "pulled"
-            pushed = temp / "pushed"
-            harness = f'''git() {{
-              case "$1" in
-                add|commit) return 0 ;;
-                diff) return 1 ;;
-                ls-remote) printf '%s\trefs/heads/main\n' "{'b' * 40}" ;;
-                push) touch "$PUSHED_FILE" ;;
-                pull) touch "$PULLED_FILE" ;;
-              esac
-            }}
-            gh() {{ :; }}
-            python3() {{ touch "$REVALIDATED_FILE"; }}
-            {script}
-            '''
-            completed = subprocess.run(
-                ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", harness],
-                cwd=ROOT,
-                env={
-                    **os.environ,
-                    "CASK": "",
-                    "ARTIFACT_TEMPLATE": "{formula}_{version}_{target}.tar.gz",
-                    "DARWIN_AMD64_SHA256": "1" * 64,
-                    "DARWIN_ARM64_SHA256": "2" * 64,
-                    "DEFAULT_BRANCH": "main",
-                    "FORMULA": "telecrawl",
-                    "GITHUB_SHA": "a" * 40,
-                    "LINUX_AMD64_SHA256": "3" * 64,
-                    "LINUX_ARM64_SHA256": "4" * 64,
-                    "PULLED_FILE": str(pulled),
-                    "PUSHED_FILE": str(pushed),
-                    "REVALIDATED_FILE": str(temp / "revalidated"),
-                    "REPOSITORY": "openclaw/telecrawl",
-                    "REQUEST_ID": "telecrawl-v0.3.4-123",
-                    "SOURCE_TAG_COMMIT": "c" * 40,
-                    "SOURCE_TAG_OBJECT": "d" * 40,
-                    "TAG": "v0.3.4",
-                },
-                check=False,
-            )
-
-            self.assertNotEqual(completed.returncode, 0)
-            self.assertTrue((temp / "revalidated").exists())
-            self.assertFalse(pulled.exists())
-            self.assertFalse(pushed.exists())
-
-    def test_verified_push_revalidates_and_confirms_exact_remote_head(self) -> None:
-        self.check_verified_push(noop=False)
-
-    def test_verified_noop_creates_provenance_and_revalidates(self) -> None:
-        self.check_verified_push(noop=True)
-
-    def check_verified_push(self, *, noop: bool) -> None:
-        script = named_step_run(UPDATE_WORKFLOW.read_text(), "Commit and push")
-        with tempfile.TemporaryDirectory() as directory:
-            temp = pathlib.Path(directory)
-            pushed = temp / "pushed"
-            revalidation_count = temp / "revalidation-count"
-            remote_proved = temp / "remote-proved"
-            token_leak = temp / "token-leak"
-            local_head = "e" * 40
-            event_head = "a" * 40
-            harness = f'''git() {{
-              case "$1" in
-                add) return 0 ;;
-                commit)
-                  printf '%s\n' "$@" > "$COMMIT_ARGS_FILE"
-                  ;;
-                diff) return {0 if noop else 1} ;;
-                ls-remote)
-                  if [ -f "$PUSHED_FILE" ]; then
-                    touch "$REMOTE_PROVED_FILE"
-                    printf '%s\trefs/heads/main\n' "$LOCAL_HEAD"
-                  else
-                    printf '%s\trefs/heads/main\n' "$GITHUB_SHA"
-                  fi
-                  ;;
-                push) touch "$PUSHED_FILE" ;;
-                pull) touch "$PULLED_FILE" ;;
-                rev-parse) printf '%s\n' "$LOCAL_HEAD" ;;
-              esac
-            }}
-            gh() {{ [ -n "${{GH_TOKEN:-}}" ]; }}
-            python3() {{
-              if [ -n "${{GH_TOKEN:-}}" ]; then
-                touch "$TOKEN_LEAK_FILE"
-                return 1
-              fi
-              count=0
-              if [ -f "$REVALIDATION_COUNT_FILE" ]; then count=$(cat "$REVALIDATION_COUNT_FILE"); fi
-              count=$((count + 1))
-              if [ "$count" -eq 2 ] && [ ! -f "$REMOTE_PROVED_FILE" ]; then
-                return 1
-              fi
-              printf '%s' "$count" > "$REVALIDATION_COUNT_FILE"
-            }}
-            {script}
-            '''
-            completed = subprocess.run(
-                ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", harness],
-                cwd=ROOT,
-                env={
-                    **os.environ,
-                    "ARTIFACT_TEMPLATE": "{formula}_{version}_{target}.tar.gz",
-                    "CASK": "",
-                    "COMMIT_ARGS_FILE": str(temp / "commit-args"),
-                    "DARWIN_AMD64_SHA256": "1" * 64,
-                    "DARWIN_ARM64_SHA256": "2" * 64,
-                    "DEFAULT_BRANCH": "main",
-                    "FORMULA": "telecrawl",
-                    "GH_TOKEN": "test-token",
-                    "GITHUB_SHA": event_head,
-                    "LINUX_AMD64_SHA256": "3" * 64,
-                    "LINUX_ARM64_SHA256": "4" * 64,
-                    "LOCAL_HEAD": local_head,
-                    "PULLED_FILE": str(temp / "pulled"),
-                    "PUSHED_FILE": str(pushed),
-                    "REMOTE_PROVED_FILE": str(remote_proved),
-                    "REPOSITORY": "openclaw/telecrawl",
-                    "REQUEST_ID": "telecrawl-v0.3.4-123",
-                    "REVALIDATION_COUNT_FILE": str(revalidation_count),
-                    "SOURCE_TAG_COMMIT": "c" * 40,
-                    "SOURCE_TAG_OBJECT": "d" * 40,
-                    "TAG": "v0.3.4",
-                    "TOKEN_LEAK_FILE": str(token_leak),
-                },
-                check=False,
-            )
-
-            self.assertEqual(completed.returncode, 0)
-            self.assertEqual((temp / "commit-args").read_text().splitlines(), [
-                "commit", "--allow-empty", "-m", "telecrawl: update formula for v0.3.4", "-m",
-                "Source-Repository: openclaw/telecrawl",
-                "Source-Tag-Object: " + "d" * 40,
-                "Source-Tag-Commit: " + "c" * 40,
-                "Request-ID: telecrawl-v0.3.4-123",
-            ])
-            self.assertEqual(revalidation_count.read_text(), "2")
-            self.assertTrue(remote_proved.exists())
-            self.assertFalse(token_leak.exists())
-            self.assertTrue(pushed.exists())
-            self.assertFalse((temp / "pulled").exists())
 
 
 if __name__ == "__main__":

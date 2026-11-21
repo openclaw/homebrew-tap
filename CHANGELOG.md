@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Publish validated formula updates through immutable pull requests with strict source freshness and verified-handoff receipts.
+
 - Retain the platform timeout for CodeQL instead of imposing a shorter scan budget.
 
 - Scan main daily with CodeQL while preserving pull request and manual scans and the existing formula validation gates.
