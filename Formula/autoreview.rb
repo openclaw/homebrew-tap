@@ -34,7 +34,8 @@ class Autoreview < Formula
     assert_equal "#{version}\n", (libexec/".release-version").read
     assert_path_exists libexec/"skills/autoreview/SKILL.md"
     assert_path_exists libexec/"skills/autoreview/references/engines.md"
-    assert_equal "autoreview source-sha256:#{Digest::SHA256.file(helper).hexdigest}\n",
+    source_sha256 = Digest::SHA256.file(helper).hexdigest
+    assert_equal "autoreview source-sha256:#{source_sha256}\n",
                  shell_output("#{bin}/autoreview --version")
     assert_match "--dry-run", shell_output("#{bin}/autoreview --help")
 

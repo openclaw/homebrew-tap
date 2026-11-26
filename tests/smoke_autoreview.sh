@@ -13,6 +13,7 @@ brew tap --custom-remote openclaw/tap "$GITHUB_WORKSPACE"
 tap="$(brew --repository openclaw/tap)"
 test "$(git -C "$tap" rev-parse HEAD)" = "$(git rev-parse HEAD)"
 cmp Formula/autoreview.rb "$tap/Formula/autoreview.rb"
+brew trust --formula "$formula"
 brew audit --strict "$formula"
 
 preserved="$RUNNER_TEMP/autoreview-user-data"
