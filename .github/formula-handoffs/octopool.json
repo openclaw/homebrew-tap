@@ -1,0 +1,11 @@
+{
+  "base": "e7c31580dce2cba1904cd70d040cbd11a614dc82",
+  "formula_blob": "726031d4a1f1ce6114a4064cbf895da6a0c3121f",
+  "repository": "openclaw/octopool",
+  "request_id": "octopool-0.10.0-ca303ff5-67ca-404d-ab39-4f2ffc876ab0",
+  "run_attempt": "1",
+  "run_id": "45807330779",
+  "source_tag_commit": "406cfe6932a7f3b5b31aabb2c0f7806670b1959e",
+  "source_tag_object": "490e9ca5359e407468b5394d4fd545f53b94da02",
+  "tag": "v0.10.0"
+}
